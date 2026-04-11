@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Product Planning — Feature Tracker</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -125,14 +124,14 @@
 <div class="import-bar">
   <label>Excel Import / Export:</label>
   <button class="btn btn-green" onclick="document.getElementById('fileInput').click()">
-    &#8679; Import Excel (.xlsx)
+    &#8679; Import CSV
   </button>
-  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="importExcel(this)">
-  <button class="btn btn-blue" onclick="exportExcel()">
-    &#8681; Export to Excel
+  <input type="file" id="fileInput" accept=".csv" onchange="importCSV(this)">
+  <button class="btn btn-blue" onclick="exportCSV()">
+    &#8681; Export to CSV (Excel)
   </button>
   <button class="btn btn-purple" onclick="downloadTemplate()">
-    &#9112; Download Template
+    &#9112; Download Template CSV
   </button>
   <span id="importLegend" style="display:none" class="legend">
     <span><span class="legend-dot" style="background:#34d399"></span>New row added</span>
@@ -198,22 +197,79 @@ let DATA = [{"feature_number":"FEAT-0001","feature_title":"User Authentication v
 let newRows = new Set();
 let updatedRows = new Set();
 
+// ── CSV HELPERS ───────────────────────────────────────────────────────
+function csvCell(v) {
+  const s = String(v === null || v === undefined ? "" : v);
+  return (s.includes(",") || s.includes('"') || s.includes("\n"))
+    ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function toCSV(rows) {
+  const header = COLUMNS.join(",");
+  const lines = rows.map(f =>
+    COLUMNS.map(col => {
+      let v = f[col];
+      if (col === "dependencies") v = Array.isArray(v) ? v.join("|") : (v || "");
+      return csvCell(v);
+    }).join(",")
+  );
+  return "\uFEFF" + header + "\r\n" + lines.join("\r\n"); // BOM for Excel UTF-8
+}
+
+function parseCSV(text) {
+  // strip BOM
+  text = text.replace(/^\uFEFF/, "");
+  const lines = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQ && text[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if ((ch === "\r" || ch === "\n") && !inQ) {
+      if (ch === "\r" && text[i+1] === "\n") i++;
+      lines.push(cur); cur = "";
+    } else cur += ch;
+  }
+  if (cur) lines.push(cur);
+
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim());
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const vals = [], buf = [];
+    let q = false;
+    for (let i = 0; i <= line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (q && line[i+1]==='"'){buf.push('"');i++;}else q=!q; }
+      else if ((c === "," || i === line.length) && !q) { vals.push(buf.join("")); buf.length=0; }
+      else buf.push(c);
+    }
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] !== undefined ? vals[i] : "");
+    return obj;
+  });
+}
+
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], {type: mime});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
 // ── IMPORT ────────────────────────────────────────────────────────────
-function importExcel(input) {
+function importCSV(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const wb = XLSX.read(e.target.result, {type: "array"});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {defval: ""});
-
-      if (!rows.length) { showToast("Excel file is empty.", "error"); return; }
-
-      // Check headers
-      const headers = Object.keys(rows[0]);
-      if (!headers.includes("feature_number")) {
+      const rows = parseCSV(e.target.result);
+      if (!rows.length) { showToast("CSV file is empty or unreadable.", "error"); return; }
+      if (!Object.keys(rows[0]).includes("feature_number")) {
         showToast("Missing required column: feature_number", "error"); return;
       }
 
@@ -225,113 +281,87 @@ function importExcel(input) {
         const fn = String(row.feature_number || "").trim();
         if (!fn) return;
 
-        // normalize dependencies
-        let deps = row.dependencies || [];
-        if (typeof deps === "string") {
-          deps = deps.split(",").map(s => s.trim()).filter(Boolean);
-        }
-
-        const merged = {
-          feature_number:       fn,
-          feature_title:        row.feature_title        || "",
-          current_status:       row.current_status       || "Planned",
-          target_release_date:  row.target_release_date  || "",
-          priority:             row.priority             || "Medium",
-          assigned_team:        row.assigned_team        || "",
-          product_area:         row.product_area         || "",
-          story_points:         Number(row.story_points) || 0,
-          sprint_quarter:       row.sprint_quarter       || "",
-          start_date:           row.start_date           || "",
-          progress_percent:     Number(row.progress_percent) || 0,
-          current_phase:        row.current_phase        || "",
-          dependencies:         deps,
-          jira_ticket_id:       row.jira_ticket_id       || "",
-          stakeholder_requester:row.stakeholder_requester|| "",
-          engineering_lead:     row.engineering_lead     || "",
-          limitation:           row.limitation           || "",
-          documentation:        row.documentation        || ""
-        };
+        let deps = String(row.dependencies || "").trim();
+        const depsArr = deps ? deps.split("|").map(s => s.trim()).filter(Boolean) : [];
 
         if (fn in existingMap) {
-          // update existing — only overwrite non-empty incoming fields
           const idx = existingMap[fn];
           COLUMNS.forEach(col => {
             const val = row[col];
-            if (val !== undefined && val !== "") {
-              if (col === "dependencies") DATA[idx][col] = deps;
-              else if (col === "story_points" || col === "progress_percent")
-                DATA[idx][col] = Number(val);
-              else DATA[idx][col] = val;
-            }
+            if (val === undefined || val === "") return;
+            if (col === "dependencies") DATA[idx][col] = depsArr;
+            else if (col === "story_points" || col === "progress_percent") DATA[idx][col] = Number(val) || 0;
+            else DATA[idx][col] = val;
           });
-          updatedRows.add(fn);
-          updated++;
+          updatedRows.add(fn); updated++;
         } else {
-          DATA.push(merged);
+          DATA.push({
+            feature_number: fn,
+            feature_title:        row.feature_title        || "",
+            current_status:       row.current_status       || "Planned",
+            target_release_date:  row.target_release_date  || "",
+            priority:             row.priority             || "Medium",
+            assigned_team:        row.assigned_team        || "",
+            product_area:         row.product_area         || "",
+            story_points:         Number(row.story_points) || 0,
+            sprint_quarter:       row.sprint_quarter       || "",
+            start_date:           row.start_date           || "",
+            progress_percent:     Number(row.progress_percent) || 0,
+            current_phase:        row.current_phase        || "",
+            dependencies:         depsArr,
+            jira_ticket_id:       row.jira_ticket_id       || "",
+            stakeholder_requester:row.stakeholder_requester|| "",
+            engineering_lead:     row.engineering_lead     || "",
+            limitation:           row.limitation           || "",
+            documentation:        row.documentation        || ""
+          });
           existingMap[fn] = DATA.length - 1;
-          newRows.add(fn);
-          added++;
+          newRows.add(fn); added++;
         }
       });
 
       document.getElementById("importLegend").style.display = added + updated > 0 ? "flex" : "none";
-      updateStats();
-      render();
+      updateStats(); render();
       showToast(`Import complete — ${added} added, ${updated} updated.`, "success");
       input.value = "";
     } catch(err) {
-      showToast("Failed to parse file: " + err.message, "error");
+      showToast("Failed to parse CSV: " + err.message, "error");
     }
   };
-  reader.readAsArrayBuffer(file);
+  reader.readAsText(file, "UTF-8");
 }
 
 // ── EXPORT ────────────────────────────────────────────────────────────
-function exportExcel() {
-  const rows = sorted(filtered()).map(f => {
-    const r = Object.assign({}, f);
-    r.dependencies = Array.isArray(r.dependencies) ? r.dependencies.join(", ") : r.dependencies;
-    return r;
-  });
-  const ws = XLSX.utils.json_to_sheet(rows, {header: COLUMNS});
-  // column widths
-  ws["!cols"] = [8,40,14,14,10,14,16,6,20,12,10,14,24,12,20,16,60,60].map(w => ({wch:w}));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Features");
-  XLSX.writeFile(wb, "features_data.xlsx");
-  showToast("Exported features_data.xlsx", "success");
+function exportCSV() {
+  const rows = sorted(filtered());
+  downloadBlob(toCSV(rows), "features_data.csv", "text/csv;charset=utf-8;");
+  showToast("Exported features_data.csv — open in Excel.", "success");
 }
 
 // ── TEMPLATE ─────────────────────────────────────────────────────────
 function downloadTemplate() {
-  const sample = [
-    {
-      feature_number: "FEAT-0101",
-      feature_title: "Sample New Feature",
-      current_status: "Planned",
-      target_release_date: "2026-06-30",
-      priority: "High",
-      assigned_team: "Backend",
-      product_area: "API",
-      story_points: 5,
-      sprint_quarter: "Sprint 10 / Q2 2026",
-      start_date: "2026-05-01",
-      progress_percent: 0,
-      current_phase: "Discovery",
-      dependencies: "",
-      jira_ticket_id: "PROJ-1101",
-      stakeholder_requester: "Product Team",
-      engineering_lead: "Alice Chen",
-      limitation: "Describe any known limitations here",
-      documentation: "Not yet documented"
-    }
-  ];
-  const ws = XLSX.utils.json_to_sheet(sample, {header: COLUMNS});
-  ws["!cols"] = [8,40,14,14,10,14,16,6,20,12,10,14,24,12,20,16,60,60].map(w => ({wch:w}));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Features");
-  XLSX.writeFile(wb, "features_template.xlsx");
-  showToast("Template downloaded — fill in rows and re-import.", "success");
+  const sample = [{
+    feature_number: "FEAT-0101",
+    feature_title: "Sample New Feature",
+    current_status: "Planned",
+    target_release_date: "2026-06-30",
+    priority: "High",
+    assigned_team: "Backend",
+    product_area: "API",
+    story_points: 5,
+    sprint_quarter: "Sprint 10 / Q2 2026",
+    start_date: "2026-05-01",
+    progress_percent: 0,
+    current_phase: "Discovery",
+    dependencies: "",
+    jira_ticket_id: "PROJ-1101",
+    stakeholder_requester: "Product Team",
+    engineering_lead: "Alice Chen",
+    limitation: "Describe any known limitations here",
+    documentation: "Not yet documented"
+  }];
+  downloadBlob(toCSV(sample), "features_template.csv", "text/csv;charset=utf-8;");
+  showToast("Template downloaded — fill rows in Excel, save as CSV, then re-import.", "success");
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────
