@@ -213,7 +213,7 @@ function toCSV(rows) {
       return csvCell(v);
     }).join(",")
   );
-  return "\uFEFF" + header + "\r\n" + lines.join("\r\n"); // BOM for Excel UTF-8
+  return header + "\r\n" + lines.join("\r\n");
 }
 
 function parseCSV(text) {
