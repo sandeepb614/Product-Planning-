@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Planning — Feature Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222636;
+    --border: #2e3248;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --text: #e2e8f0;
+    --text-muted: #8892a4;
+    --radius: 8px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 13px;
+  }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6c63ff, #00d4aa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    white-space: nowrap;
+  }
+  .header-meta {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .stat-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stat-pill strong { color: var(--text); }
+
+  /* CONTROLS */
+  .controls {
+    padding: 16px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 320px;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  input[type=search], select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 7px 12px;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type=search] {
+    padding-left: 32px;
+    width: 100%;
+  }
+  input[type=search]:focus, select:focus {
+    border-color: var(--accent);
+  }
+  select { cursor: pointer; min-width: 120px; }
+  select option { background: #222636; }
+
+  .btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    padding: 7px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--border); color: var(--text); }
+  .btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .count-badge {
+    background: var(--accent);
+    color: #fff;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: auto;
+  }
+
+  /* TABLE WRAPPER */
+  .table-wrap {
+    overflow-x: auto;
+    padding: 0 28px 28px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    min-width: 1400px;
+  }
+
+  thead th {
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  thead th:hover { color: var(--text); background: #2a2e42; }
+  thead th .sort-icon { margin-left: 4px; opacity: 0.4; }
+  thead th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    max-width: 220px;
+  }
+
+  /* DETAIL ROW */
+  .detail-row { display: none; }
+  .detail-row.open { display: table-row; }
+  .detail-row td {
+    background: #13162099;
+    padding: 16px 20px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .detail-item label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+  }
+  .detail-item .val {
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .dep-tag {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    margin: 2px 2px 0 0;
+    color: var(--accent2);
+  }
+
+  /* BADGES */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.7; }
+
+  .s-completed   { background: #0d3d2a; color: #34d399; }
+  .s-in-progress { background: #1e2f5a; color: #60a5fa; }
+  .s-planned     { background: #2a1f40; color: #a78bfa; }
+  .s-on-hold     { background: #3d2a0d; color: #fbbf24; }
+  .s-cancelled   { background: #3a1a1a; color: #f87171; }
+
+  .p-critical { background: #3a1a1a; color: #f87171; }
+  .p-high     { background: #3a2a0d; color: #fb923c; }
+  .p-medium   { background: #1e2a1e; color: #86efac; }
+  .p-low      { background: #1a2a3a; color: #7dd3fc; }
+
+  .phase-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .phase-launched { border-color: #34d399; color: #34d399; }
+  .phase-development { border-color: #60a5fa; color: #60a5fa; }
+  .phase-qa { border-color: #a78bfa; color: #a78bfa; }
+  .phase-design { border-color: #fb923c; color: #fb923c; }
+
+  /* PROGRESS BAR */
+  .progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 90px;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+  .p100 { background: #34d399; }
+  .p75  { background: #60a5fa; }
+  .p50  { background: #fbbf24; }
+  .p25  { background: #f87171; }
+  .plow { background: #6b7280; }
+  .progress-val { font-size: 11px; color: var(--text-muted); min-width: 30px; text-align: right; }
+
+  /* FEAT NUMBER */
+  .feat-num {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .jira-id {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .feature-title {
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .feature-title:hover { color: var(--accent2); }
+  .row-expand { cursor: pointer; }
+  .expand-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 3px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+  }
+  .expand-icon.open { transform: rotate(90deg); color: var(--accent); border-color: var(--accent); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state svg { margin-bottom: 12px; opacity: 0.3; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3e4460; }
+
+  @media (max-width: 768px) {
+    header, .controls { padding: 14px 16px; }
+    .table-wrap { padding: 0 16px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Product Planning — Feature Tracker</h1>
+  <div class="header-meta">
+    <div class="stat-pill">Total <strong id="stat-total">100</strong></div>
+    <div class="stat-pill">Completed <strong id="stat-done" style="color:#34d399"></strong></div>
+    <div class="stat-pill">In Progress <strong id="stat-wip" style="color:#60a5fa"></strong></div>
+    <div class="stat-pill">Planned <strong id="stat-plan" style="color:#a78bfa"></strong></div>
+    <div class="stat-pill">On Hold <strong id="stat-hold" style="color:#fbbf24"></strong></div>
+    <div class="stat-pill">Generated <strong>2026-04-11</strong></div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input type="search" id="searchBox" placeholder="Search features, tickets, leads…">
+  </div>
+
+  <select id="filterStatus">
+    <option value="">All Status</option>
+    <option>Planned</option>
+    <option>In Progress</option>
+    <option>Completed</option>
+    <option>On Hold</option>
+    <option>Cancelled</option>
+  </select>
+
+  <select id="filterPriority">
+    <option value="">All Priority</option>
+    <option>Critical</option>
+    <option>High</option>
+    <option>Medium</option>
+    <option>Low</option>
+  </select>
+
+  <select id="filterArea">
+    <option value="">All Areas</option>
+    <option>Analytics</option>
+    <option>API</option>
+    <option>Auth</option>
+    <option>Billing</option>
+    <option>Dashboard</option>
+    <option>Integrations</option>
+    <option>Mobile</option>
+    <option>Notifications</option>
+    <option>Onboarding</option>
+    <option>Performance</option>
+    <option>Reporting</option>
+    <option>Search</option>
+    <option>Security</option>
+    <option>Settings</option>
+    <option>User Management</option>
+  </select>
+
+  <select id="filterTeam">
+    <option value="">All Teams</option>
+    <option>Backend</option>
+    <option>Data</option>
+    <option>Design</option>
+    <option>DevOps</option>
+    <option>Frontend</option>
+    <option>Full-Stack</option>
+    <option>Mobile</option>
+    <option>QA</option>
+  </select>
+
+  <select id="filterPhase">
+    <option value="">All Phases</option>
+    <option>Discovery</option>
+    <option>Design</option>
+    <option>Development</option>
+    <option>QA</option>
+    <option>Launched</option>
+    <option>On Hold</option>
+    <option>Cancelled</option>
+  </select>
+
+  <button class="btn" onclick="resetFilters()">Reset</button>
+  <span class="count-badge" id="countBadge">100</span>
+</div>
+
+<div class="table-wrap">
+  <table id="featureTable">
+    <thead>
+      <tr>
+        <th></th>
+        <th onclick="sortBy('feature_number')" data-col="feature_number"># <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('feature_title')" data-col="feature_title">Feature Title <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('current_status')" data-col="current_status">Status <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('priority')" data-col="priority">Priority <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('product_area')" data-col="product_area">Area <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('assigned_team')" data-col="assigned_team">Team <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('current_phase')" data-col="current_phase">Phase <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('progress_percent')" data-col="progress_percent">Progress <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('story_points')" data-col="story_points">SP <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('start_date')" data-col="start_date">Start <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('target_release_date')" data-col="target_release_date">Release <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('engineering_lead')" data-col="engineering_lead">Lead <span class="sort-icon">↕</span></th>
+        <th onclick="sortBy('jira_ticket_id')" data-col="jira_ticket_id">Ticket <span class="sort-icon">↕</span></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div class="empty-state" id="emptyState" style="display:none">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <p>No features match your filters.</p>
+  </div>
+</div>
+
+<script>
+const RAW = [{"feature_number":"FEAT-0001","feature_title":"User Authentication via OAuth 2.0","current_status":"Completed","target_release_date":"2025-06-28","priority":"Critical","assigned_team":"Frontend","product_area":"Auth","story_points":2,"sprint_quarter":"Sprint 4 / Q2 2026","start_date":"2025-03-31","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1001","stakeholder_requester":"CEO","engineering_lead":"Alice Chen","limitation":"Limited to 10 concurrent WebSocket connections per user.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0002","feature_title":"Two-Factor Authentication (2FA)","current_status":"Planned","target_release_date":"2026-02-06","priority":"Medium","assigned_team":"Backend","product_area":"Auth","story_points":2,"sprint_quarter":"Sprint 15 / Q4 2025","start_date":"2025-10-12","progress_percent":0,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1002","stakeholder_requester":"Marketing","engineering_lead":"Grace Patel","limitation":"Tax calculation limited to US, EU, and CA jurisdictions.","documentation":"https://docs.internal/features/two-factor-authentication-2fa \u2014 Pending Review"},{"feature_number":"FEAT-0003","feature_title":"Single Sign-On (SSO) Integration","current_status":"Planned","target_release_date":"2026-03-02","priority":"High","assigned_team":"Data","product_area":"Auth","story_points":1,"sprint_quarter":"Sprint 4 / Q1 2025","start_date":"2026-01-03","progress_percent":8,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1003","stakeholder_requester":"Enterprise Clients","engineering_lead":"Bob Martinez","limitation":"Biometric login requires device hardware support.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0004","feature_title":"Password Reset & Recovery Flow","current_status":"Planned","target_release_date":"2025-04-01","priority":"High","assigned_team":"DevOps","product_area":"Auth","story_points":21,"sprint_quarter":"Sprint 7 / Q3 2026","start_date":"2025-03-13","progress_percent":7,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1004","stakeholder_requester":"CEO","engineering_lead":"David Kim","limitation":"Bulk user import limited to 10,000 users per batch.","documentation":"https://docs.internal/features/password-reset-and-recovery-flow \u2014 Draft in Progress"},{"feature_number":"FEAT-0005","feature_title":"Session Management & Timeout","current_status":"In Progress","target_release_date":"2026-01-12","priority":"Medium","assigned_team":"QA","product_area":"Auth","story_points":2,"sprint_quarter":"Sprint 7 / Q3 2025","start_date":"2025-10-01","progress_percent":29,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1005","stakeholder_requester":"CTO","engineering_lead":"David Kim","limitation":"Biometric login requires device hardware support.","documentation":"https://docs.internal/features/session-management-and-timeout \u2014 Pending Review"},{"feature_number":"FEAT-0006","feature_title":"LDAP / Active Directory Integration","current_status":"In Progress","target_release_date":"2025-04-11","priority":"High","assigned_team":"Full-Stack","product_area":"Auth","story_points":13,"sprint_quarter":"Sprint 11 / Q2 2026","start_date":"2025-02-27","progress_percent":60,"current_phase":"Design","dependencies":[],"jira_ticket_id":"PROJ-1006","stakeholder_requester":"Marketing","engineering_lead":"Jake Wilson","limitation":"SMS alerts limited to US/CA numbers in v1.","documentation":"https://docs.internal/features/ldap--active-directory-integration \u2014 Draft in Progress"},{"feature_number":"FEAT-0007","feature_title":"Biometric Login Support","current_status":"Planned","target_release_date":"2025-07-07","priority":"Medium","assigned_team":"QA","product_area":"Auth","story_points":13,"sprint_quarter":"Sprint 9 / Q4 2025","start_date":"2025-05-23","progress_percent":8,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1007","stakeholder_requester":"Enterprise Clients","engineering_lead":"Jake Wilson","limitation":"Jira integration supports Cloud only; Server/DC planned.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0008","feature_title":"Social Login (Google, GitHub, Apple)","current_status":"In Progress","target_release_date":"2025-09-08","priority":"Low","assigned_team":"Backend","product_area":"Auth","story_points":5,"sprint_quarter":"Sprint 4 / Q1 2025","start_date":"2025-06-06","progress_percent":74,"current_phase":"Design","dependencies":[],"jira_ticket_id":"PROJ-1008","stakeholder_requester":"Legal","engineering_lead":"Jake Wilson","limitation":"Custom dashboards limited to 20 widgets per layout.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0009","feature_title":"Widget Customization Panel","current_status":"In Progress","target_release_date":"2026-01-21","priority":"Low","assigned_team":"QA","product_area":"Dashboard","story_points":1,"sprint_quarter":"Sprint 18 / Q1 2026","start_date":"2025-10-01","progress_percent":63,"current_phase":"QA","dependencies":["FEAT-0003","FEAT-0004"],"jira_ticket_id":"PROJ-1009","stakeholder_requester":"Finance","engineering_lead":"Emma Singh","limitation":"In-app notifications retained for 30 days only.","documentation":"https://docs.internal/features/widget-customization-panel \u2014 Complete"},{"feature_number":"FEAT-0010","feature_title":"Dark Mode UI Theme","current_status":"Completed","target_release_date":"2025-08-25","priority":"Medium","assigned_team":"Backend","product_area":"Dashboard","story_points":13,"sprint_quarter":"Sprint 17 / Q3 2026","start_date":"2025-07-23","progress_percent":100,"current_phase":"Launched","dependencies":["FEAT-0009"],"jira_ticket_id":"PROJ-1010","stakeholder_requester":"Support Team","engineering_lead":"Alice Chen","limitation":"CDN is region-locked to US-East and EU-West in v1.","documentation":"https://docs.internal/features/dark-mode-ui-theme \u2014 Needs Update"},{"feature_number":"FEAT-0011","feature_title":"Responsive Mobile Layout","current_status":"In Progress","target_release_date":"2025-11-29","priority":"Critical","assigned_team":"Full-Stack","product_area":"Dashboard","story_points":21,"sprint_quarter":"Sprint 2 / Q3 2025","start_date":"2025-09-04","progress_percent":30,"current_phase":"Design","dependencies":[],"jira_ticket_id":"PROJ-1011","stakeholder_requester":"CTO","engineering_lead":"Iris Tanaka","limitation":"Mobile deep linking requires iOS 14+ or Android 9+.","documentation":"https://docs.internal/features/responsive-mobile-layout \u2014 Draft in Progress"},{"feature_number":"FEAT-0012","feature_title":"Drag-and-Drop Dashboard Builder","current_status":"Planned","target_release_date":"2025-11-07","priority":"Medium","assigned_team":"Design","product_area":"Dashboard","story_points":3,"sprint_quarter":"Sprint 18 / Q4 2025","start_date":"2025-07-25","progress_percent":9,"current_phase":"Discovery","dependencies":["FEAT-0011","FEAT-0006","FEAT-0008"],"jira_ticket_id":"PROJ-1012","stakeholder_requester":"Sales Team","engineering_lead":"Bob Martinez","limitation":"Offline mode syncs only last 7 days of data.","documentation":"https://docs.internal/features/drag-and-drop-dashboard-builder \u2014 Needs Update"},{"feature_number":"FEAT-0013","feature_title":"Real-time Data Updates via WebSocket","current_status":"Planned","target_release_date":"2025-04-14","priority":"High","assigned_team":"Design","product_area":"Dashboard","story_points":2,"sprint_quarter":"Sprint 3 / Q2 2025","start_date":"2025-03-02","progress_percent":2,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1013","stakeholder_requester":"Sales Team","engineering_lead":"Iris Tanaka","limitation":"Third-party API rate limits may affect sync frequency.","documentation":"https://docs.internal/features/real-time-data-updates-via-websocket \u2014 Published"},{"feature_number":"FEAT-0014","feature_title":"Saved Dashboard Layouts","current_status":"Planned","target_release_date":"2026-03-31","priority":"Medium","assigned_team":"Design","product_area":"Dashboard","story_points":13,"sprint_quarter":"Sprint 16 / Q4 2025","start_date":"2026-02-21","progress_percent":3,"current_phase":"Discovery","dependencies":["FEAT-0006","FEAT-0007"],"jira_ticket_id":"PROJ-1014","stakeholder_requester":"CEO","engineering_lead":"Alice Chen","limitation":"Offline mode syncs only last 7 days of data.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0015","feature_title":"Stripe Payment Integration","current_status":"Planned","target_release_date":"2026-05-06","priority":"Medium","assigned_team":"QA","product_area":"Billing","story_points":1,"sprint_quarter":"Sprint 7 / Q2 2025","start_date":"2026-04-05","progress_percent":13,"current_phase":"Discovery","dependencies":["FEAT-0004","FEAT-0002"],"jira_ticket_id":"PROJ-1015","stakeholder_requester":"CEO","engineering_lead":"Iris Tanaka","limitation":"Audit log retention is 12 months; archiving requires manual export.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0016","feature_title":"Invoice Generation & PDF Export","current_status":"Planned","target_release_date":"2026-07-27","priority":"Low","assigned_team":"QA","product_area":"Billing","story_points":1,"sprint_quarter":"Sprint 14 / Q2 2025","start_date":"2026-05-13","progress_percent":6,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1016","stakeholder_requester":"Product Team","engineering_lead":"Grace Patel","limitation":"Search index updates have up to 5-minute delay.","documentation":"https://docs.internal/features/invoice-generation-and-pdf-export \u2014 Complete"},{"feature_number":"FEAT-0017","feature_title":"Subscription Plan Management","current_status":"Cancelled","target_release_date":"2026-06-16","priority":"High","assigned_team":"Data","product_area":"Billing","story_points":5,"sprint_quarter":"Sprint 18 / Q3 2025","start_date":"2026-05-14","progress_percent":12,"current_phase":"Cancelled","dependencies":["FEAT-0002"],"jira_ticket_id":"PROJ-1017","stakeholder_requester":"Support Team","engineering_lead":"Alice Chen","limitation":"Limited to 10 concurrent WebSocket connections per user.","documentation":"https://docs.internal/features/subscription-plan-management \u2014 Published"},{"feature_number":"FEAT-0018","feature_title":"Payment History & Receipts","current_status":"In Progress","target_release_date":"2025-06-19","priority":"Low","assigned_team":"Design","product_area":"Billing","story_points":1,"sprint_quarter":"Sprint 3 / Q1 2025","start_date":"2025-03-11","progress_percent":71,"current_phase":"Design","dependencies":["FEAT-0008","FEAT-0002","FEAT-0010"],"jira_ticket_id":"PROJ-1018","stakeholder_requester":"Support Team","engineering_lead":"Jake Wilson","limitation":"API rate limit: 1,000 requests/minute per API key.","documentation":"https://docs.internal/features/payment-history-and-receipts \u2014 Draft in Progress"},{"feature_number":"FEAT-0019","feature_title":"Promotional Codes & Discounts","current_status":"In Progress","target_release_date":"2026-03-12","priority":"Low","assigned_team":"Frontend","product_area":"Billing","story_points":13,"sprint_quarter":"Sprint 9 / Q3 2025","start_date":"2026-02-10","progress_percent":58,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1019","stakeholder_requester":"Support Team","engineering_lead":"Henry Brown","limitation":"Only supports OAuth 2.0 providers; legacy OAuth 1.0 not supported.","documentation":"https://docs.internal/features/promotional-codes-and-discounts \u2014 Draft in Progress"},{"feature_number":"FEAT-0020","feature_title":"Multi-currency Support","current_status":"Cancelled","target_release_date":"2025-04-26","priority":"Low","assigned_team":"Backend","product_area":"Billing","story_points":2,"sprint_quarter":"Sprint 12 / Q3 2025","start_date":"2025-03-12","progress_percent":23,"current_phase":"Cancelled","dependencies":["FEAT-0018","FEAT-0010"],"jira_ticket_id":"PROJ-1020","stakeholder_requester":"Product Team","engineering_lead":"Iris Tanaka","limitation":"Audit log retention is 12 months; archiving requires manual export.","documentation":"Documented in README only; full docs planned"},{"feature_number":"FEAT-0021","feature_title":"Tax Calculation & Compliance","current_status":"Completed","target_release_date":"2025-08-07","priority":"Medium","assigned_team":"Full-Stack","product_area":"Billing","story_points":1,"sprint_quarter":"Sprint 4 / Q2 2025","start_date":"2025-04-20","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1021","stakeholder_requester":"Sales Team","engineering_lead":"Jake Wilson","limitation":"CSV export capped at 50,000 rows per request.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0022","feature_title":"Failed Payment Retry Logic","current_status":"Completed","target_release_date":"2025-07-09","priority":"High","assigned_team":"DevOps","product_area":"Billing","story_points":3,"sprint_quarter":"Sprint 2 / Q4 2025","start_date":"2025-04-05","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1022","stakeholder_requester":"Marketing","engineering_lead":"Alice Chen","limitation":"Limited to 10 concurrent WebSocket connections per user.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0023","feature_title":"Email Notification System","current_status":"Completed","target_release_date":"2025-02-07","priority":"Medium","assigned_team":"Frontend","product_area":"Notifications","story_points":13,"sprint_quarter":"Sprint 14 / Q4 2026","start_date":"2025-01-10","progress_percent":100,"current_phase":"Launched","dependencies":["FEAT-0005","FEAT-0018","FEAT-0002"],"jira_ticket_id":"PROJ-1023","stakeholder_requester":"CTO","engineering_lead":"Iris Tanaka","limitation":"LDAP sync runs every 15 minutes; real-time not supported.","documentation":"https://docs.internal/features/email-notification-system \u2014 Published"},{"feature_number":"FEAT-0024","feature_title":"In-App Notification Center","current_status":"In Progress","target_release_date":"2025-12-21","priority":"Critical","assigned_team":"Frontend","product_area":"Notifications","story_points":21,"sprint_quarter":"Sprint 7 / Q1 2025","start_date":"2025-09-13","progress_percent":65,"current_phase":"Design","dependencies":[],"jira_ticket_id":"PROJ-1024","stakeholder_requester":"Sales Team","engineering_lead":"Carol White","limitation":"A/B testing limited to 5 active experiments at a time.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0025","feature_title":"Mobile Push Notifications","current_status":"On Hold","target_release_date":"2026-06-22","priority":"Low","assigned_team":"QA","product_area":"Notifications","story_points":5,"sprint_quarter":"Sprint 11 / Q1 2025","start_date":"2026-02-26","progress_percent":52,"current_phase":"On Hold","dependencies":[],"jira_ticket_id":"PROJ-1025","stakeholder_requester":"CEO","engineering_lead":"Carol White","limitation":"GraphQL introspection disabled in production.","documentation":"Not yet documented \u2014 scheduled for next sprint"},{"feature_number":"FEAT-0026","feature_title":"SMS Alert Integration","current_status":"In Progress","target_release_date":"2025-10-03","priority":"Critical","assigned_team":"Mobile","product_area":"Notifications","story_points":2,"sprint_quarter":"Sprint 10 / Q4 2025","start_date":"2025-08-22","progress_percent":44,"current_phase":"Design","dependencies":["FEAT-0003","FEAT-0025"],"jira_ticket_id":"PROJ-1026","stakeholder_requester":"Enterprise Clients","engineering_lead":"Iris Tanaka","limitation":"SSO limited to SAML 2.0; OpenID Connect planned for v2.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0027","feature_title":"Notification Preferences & Controls","current_status":"Completed","target_release_date":"2025-10-17","priority":"Low","assigned_team":"Frontend","product_area":"Notifications","story_points":1,"sprint_quarter":"Sprint 6 / Q1 2025","start_date":"2025-09-29","progress_percent":100,"current_phase":"Launched","dependencies":["FEAT-0012","FEAT-0024"],"jira_ticket_id":"PROJ-1027","stakeholder_requester":"Finance","engineering_lead":"Jake Wilson","limitation":"API rate limit: 1,000 requests/minute per API key.","documentation":"https://docs.internal/features/notification-preferences-and-controls \u2014 Published"},{"feature_number":"FEAT-0028","feature_title":"Weekly Digest Emails","current_status":"Planned","target_release_date":"2025-09-19","priority":"Low","assigned_team":"Backend","product_area":"Notifications","story_points":1,"sprint_quarter":"Sprint 17 / Q4 2025","start_date":"2025-07-21","progress_percent":13,"current_phase":"Discovery","dependencies":["FEAT-0011","FEAT-0020","FEAT-0022"],"jira_ticket_id":"PROJ-1028","stakeholder_requester":"Finance","engineering_lead":"Emma Singh","limitation":"In-app notifications retained for 30 days only.","documentation":"https://docs.internal/features/weekly-digest-emails \u2014 Draft in Progress"},{"feature_number":"FEAT-0029","feature_title":"Full-Text Search Engine","current_status":"In Progress","target_release_date":"2026-05-04","priority":"Medium","assigned_team":"Mobile","product_area":"Search","story_points":3,"sprint_quarter":"Sprint 14 / Q2 2025","start_date":"2026-01-24","progress_percent":42,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1029","stakeholder_requester":"Product Team","engineering_lead":"Iris Tanaka","limitation":"Custom dashboards limited to 20 widgets per layout.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0030","feature_title":"Advanced Filter & Faceted Search","current_status":"In Progress","target_release_date":"2026-07-07","priority":"High","assigned_team":"Data","product_area":"Search","story_points":8,"sprint_quarter":"Sprint 15 / Q3 2025","start_date":"2026-03-29","progress_percent":85,"current_phase":"Design","dependencies":[],"jira_ticket_id":"PROJ-1030","stakeholder_requester":"Customer Success","engineering_lead":"Bob Martinez","limitation":"SDK auto-generation supports Python 3.8+, Node 16+, Go 1.18+ only.","documentation":"https://docs.internal/features/advanced-filter-and-faceted-search \u2014 Pending Review"},{"feature_number":"FEAT-0031","feature_title":"Search Autocomplete & Suggestions","current_status":"In Progress","target_release_date":"2025-12-14","priority":"Medium","assigned_team":"Frontend","product_area":"Search","story_points":21,"sprint_quarter":"Sprint 10 / Q2 2026","start_date":"2025-08-19","progress_percent":38,"current_phase":"Design","dependencies":["FEAT-0016"],"jira_ticket_id":"PROJ-1031","stakeholder_requester":"Legal","engineering_lead":"Bob Martinez","limitation":"Bulk user import limited to 10,000 users per batch.","documentation":"Documented in README only; full docs planned"},{"feature_number":"FEAT-0032","feature_title":"Saved Searches","current_status":"In Progress","target_release_date":"2025-10-09","priority":"Medium","assigned_team":"Backend","product_area":"Search","story_points":13,"sprint_quarter":"Sprint 13 / Q4 2025","start_date":"2025-09-07","progress_percent":20,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1032","stakeholder_requester":"Sales Team","engineering_lead":"Grace Patel","limitation":"Mobile deep linking requires iOS 14+ or Android 9+.","documentation":"https://docs.internal/features/saved-searches \u2014 Draft in Progress"},{"feature_number":"FEAT-0033","feature_title":"Global Search Across Modules","current_status":"Planned","target_release_date":"2025-09-10","priority":"Low","assigned_team":"Design","product_area":"Search","story_points":1,"sprint_quarter":"Sprint 15 / Q2 2025","start_date":"2025-05-17","progress_percent":14,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1033","stakeholder_requester":"Legal","engineering_lead":"Frank Liu","limitation":"A/B testing limited to 5 active experiments at a time.","documentation":"https://docs.internal/features/global-search-across-modules \u2014 Needs Update"},{"feature_number":"FEAT-0034","feature_title":"User Activity Analytics","current_status":"Completed","target_release_date":"2026-05-23","priority":"Medium","assigned_team":"Design","product_area":"Analytics","story_points":21,"sprint_quarter":"Sprint 16 / Q4 2025","start_date":"2026-04-06","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1034","stakeholder_requester":"Legal","engineering_lead":"Iris Tanaka","limitation":"Mobile deep linking requires iOS 14+ or Android 9+.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0035","feature_title":"Funnel Analysis","current_status":"Completed","target_release_date":"2026-02-15","priority":"High","assigned_team":"Backend","product_area":"Analytics","story_points":3,"sprint_quarter":"Sprint 11 / Q2 2025","start_date":"2025-11-24","progress_percent":100,"current_phase":"Launched","dependencies":["FEAT-0015"],"jira_ticket_id":"PROJ-1035","stakeholder_requester":"Sales Team","engineering_lead":"Carol White","limitation":"Tax calculation limited to US, EU, and CA jurisdictions.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0036","feature_title":"Cohort Retention Reports","current_status":"Planned","target_release_date":"2026-05-26","priority":"Medium","assigned_team":"Design","product_area":"Analytics","story_points":5,"sprint_quarter":"Sprint 14 / Q1 2025","start_date":"2026-02-03","progress_percent":0,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1036","stakeholder_requester":"Product Team","engineering_lead":"Henry Brown","limitation":"Custom dashboards limited to 20 widgets per layout.","documentation":"Documented in README only; full docs planned"},{"feature_number":"FEAT-0037","feature_title":"Custom Analytics Dashboards","current_status":"Cancelled","target_release_date":"2025-10-29","priority":"High","assigned_team":"Frontend","product_area":"Analytics","story_points":21,"sprint_quarter":"Sprint 18 / Q4 2026","start_date":"2025-08-14","progress_percent":14,"current_phase":"Cancelled","dependencies":["FEAT-0002","FEAT-0025"],"jira_ticket_id":"PROJ-1037","stakeholder_requester":"CTO","engineering_lead":"Grace Patel","limitation":"SDK auto-generation supports Python 3.8+, Node 16+, Go 1.18+ only.","documentation":"https://docs.internal/features/custom-analytics-dashboards \u2014 Published"},{"feature_number":"FEAT-0038","feature_title":"Event Tracking System","current_status":"On Hold","target_release_date":"2025-02-21","priority":"Low","assigned_team":"Full-Stack","product_area":"Analytics","story_points":8,"sprint_quarter":"Sprint 19 / Q1 2025","start_date":"2025-01-28","progress_percent":51,"current_phase":"On Hold","dependencies":[],"jira_ticket_id":"PROJ-1038","stakeholder_requester":"Customer Success","engineering_lead":"Alice Chen","limitation":"Search index updates have up to 5-minute delay.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0039","feature_title":"A/B Testing Framework","current_status":"In Progress","target_release_date":"2026-01-14","priority":"High","assigned_team":"Frontend","product_area":"Analytics","story_points":21,"sprint_quarter":"Sprint 14 / Q4 2025","start_date":"2025-09-16","progress_percent":80,"current_phase":"Design","dependencies":["FEAT-0004","FEAT-0023","FEAT-0015"],"jira_ticket_id":"PROJ-1039","stakeholder_requester":"Product Team","engineering_lead":"Alice Chen","limitation":"Mobile deep linking requires iOS 14+ or Android 9+.","documentation":"https://docs.internal/features/ab-testing-framework \u2014 Draft in Progress"},{"feature_number":"FEAT-0040","feature_title":"Revenue Analytics Module","current_status":"Cancelled","target_release_date":"2025-07-23","priority":"High","assigned_team":"Backend","product_area":"Analytics","story_points":2,"sprint_quarter":"Sprint 16 / Q2 2025","start_date":"2025-04-28","progress_percent":13,"current_phase":"Cancelled","dependencies":[],"jira_ticket_id":"PROJ-1040","stakeholder_requester":"CTO","engineering_lead":"Frank Liu","limitation":"Mobile deep linking requires iOS 14+ or Android 9+.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0041","feature_title":"REST API v2 Redesign","current_status":"Completed","target_release_date":"2025-03-21","priority":"Low","assigned_team":"Data","product_area":"API","story_points":21,"sprint_quarter":"Sprint 4 / Q2 2025","start_date":"2025-01-27","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1041","stakeholder_requester":"CEO","engineering_lead":"David Kim","limitation":"Custom dashboards limited to 20 widgets per layout.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0042","feature_title":"GraphQL API Layer","current_status":"In Progress","target_release_date":"2025-08-27","priority":"Low","assigned_team":"Frontend","product_area":"API","story_points":13,"sprint_quarter":"Sprint 20 / Q3 2026","start_date":"2025-05-04","progress_percent":25,"current_phase":"QA","dependencies":["FEAT-0024","FEAT-0005"],"jira_ticket_id":"PROJ-1042","stakeholder_requester":"Product Team","engineering_lead":"Frank Liu","limitation":"Cohort reports limited to 90-day retention window.","documentation":"https://docs.internal/features/graphql-api-layer \u2014 Needs Update"},{"feature_number":"FEAT-0043","feature_title":"Webhook Delivery System","current_status":"On Hold","target_release_date":"2026-04-27","priority":"Low","assigned_team":"Backend","product_area":"API","story_points":3,"sprint_quarter":"Sprint 5 / Q4 2026","start_date":"2026-03-22","progress_percent":56,"current_phase":"On Hold","dependencies":[],"jira_ticket_id":"PROJ-1043","stakeholder_requester":"Legal","engineering_lead":"Iris Tanaka","limitation":"A/B testing limited to 5 active experiments at a time.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0044","feature_title":"API Rate Limiting & Throttling","current_status":"In Progress","target_release_date":"2026-05-22","priority":"Low","assigned_team":"Design","product_area":"API","story_points":3,"sprint_quarter":"Sprint 9 / Q2 2025","start_date":"2026-04-07","progress_percent":68,"current_phase":"Development","dependencies":["FEAT-0021","FEAT-0012"],"jira_ticket_id":"PROJ-1044","stakeholder_requester":"Customer Success","engineering_lead":"Frank Liu","limitation":"SMS alerts limited to US/CA numbers in v1.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0045","feature_title":"API Key Management Portal","current_status":"In Progress","target_release_date":"2025-05-12","priority":"Low","assigned_team":"Data","product_area":"API","story_points":3,"sprint_quarter":"Sprint 7 / Q1 2026","start_date":"2025-03-29","progress_percent":72,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1045","stakeholder_requester":"Legal","engineering_lead":"Henry Brown","limitation":"Tax calculation limited to US, EU, and CA jurisdictions.","documentation":"Not yet documented \u2014 scheduled for next sprint"},{"feature_number":"FEAT-0046","feature_title":"SDK Auto-generation (Python, JS, Go)","current_status":"In Progress","target_release_date":"2026-03-28","priority":"Critical","assigned_team":"Frontend","product_area":"API","story_points":5,"sprint_quarter":"Sprint 19 / Q2 2025","start_date":"2026-01-13","progress_percent":64,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1046","stakeholder_requester":"Legal","engineering_lead":"Frank Liu","limitation":"Push notifications require app version 2.0+.","documentation":"https://docs.internal/features/sdk-auto-generation-python-js-go \u2014 Needs Update"},{"feature_number":"FEAT-0047","feature_title":"API Versioning Strategy","current_status":"Planned","target_release_date":"2025-08-16","priority":"High","assigned_team":"Backend","product_area":"API","story_points":2,"sprint_quarter":"Sprint 18 / Q3 2025","start_date":"2025-07-09","progress_percent":6,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1047","stakeholder_requester":"Finance","engineering_lead":"Jake Wilson","limitation":"In-app notifications retained for 30 days only.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0048","feature_title":"User Profile Settings Page","current_status":"In Progress","target_release_date":"2025-11-21","priority":"Low","assigned_team":"QA","product_area":"Settings","story_points":3,"sprint_quarter":"Sprint 6 / Q2 2025","start_date":"2025-11-06","progress_percent":36,"current_phase":"QA","dependencies":["FEAT-0036"],"jira_ticket_id":"PROJ-1048","stakeholder_requester":"Legal","engineering_lead":"Carol White","limitation":"Tax calculation limited to US, EU, and CA jurisdictions.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0049","feature_title":"Team & Organization Settings","current_status":"Planned","target_release_date":"2025-04-09","priority":"Critical","assigned_team":"Frontend","product_area":"Settings","story_points":5,"sprint_quarter":"Sprint 6 / Q4 2025","start_date":"2025-02-22","progress_percent":15,"current_phase":"Discovery","dependencies":["FEAT-0026"],"jira_ticket_id":"PROJ-1049","stakeholder_requester":"Product Team","engineering_lead":"Jake Wilson","limitation":"Third-party API rate limits may affect sync frequency.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0050","feature_title":"Security & Privacy Settings","current_status":"Planned","target_release_date":"2026-06-02","priority":"Low","assigned_team":"Full-Stack","product_area":"Settings","story_points":1,"sprint_quarter":"Sprint 18 / Q2 2025","start_date":"2026-03-03","progress_percent":7,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1050","stakeholder_requester":"Customer Success","engineering_lead":"Henry Brown","limitation":"Offline mode syncs only last 7 days of data.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0051","feature_title":"Integration Settings Hub","current_status":"On Hold","target_release_date":"2025-11-03","priority":"Low","assigned_team":"Frontend","product_area":"Settings","story_points":8,"sprint_quarter":"Sprint 4 / Q1 2026","start_date":"2025-08-01","progress_percent":23,"current_phase":"On Hold","dependencies":["FEAT-0011"],"jira_ticket_id":"PROJ-1051","stakeholder_requester":"CEO","engineering_lead":"Iris Tanaka","limitation":"Search index updates have up to 5-minute delay.","documentation":"Not yet documented \u2014 scheduled for next sprint"},{"feature_number":"FEAT-0052","feature_title":"Interactive Onboarding Wizard","current_status":"Planned","target_release_date":"2026-02-04","priority":"Medium","assigned_team":"DevOps","product_area":"Onboarding","story_points":5,"sprint_quarter":"Sprint 8 / Q3 2025","start_date":"2025-10-23","progress_percent":9,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1052","stakeholder_requester":"Customer Success","engineering_lead":"David Kim","limitation":"Third-party API rate limits may affect sync frequency.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0053","feature_title":"Sample Data Generator","current_status":"Completed","target_release_date":"2025-11-23","priority":"Medium","assigned_team":"DevOps","product_area":"Onboarding","story_points":2,"sprint_quarter":"Sprint 18 / Q4 2025","start_date":"2025-08-19","progress_percent":100,"current_phase":"Launched","dependencies":["FEAT-0010","FEAT-0005"],"jira_ticket_id":"PROJ-1053","stakeholder_requester":"Support Team","engineering_lead":"Emma Singh","limitation":"Search index updates have up to 5-minute delay.","documentation":"https://docs.internal/features/sample-data-generator \u2014 Complete"},{"feature_number":"FEAT-0054","feature_title":"Onboarding Progress Tracker","current_status":"Completed","target_release_date":"2026-04-06","priority":"Medium","assigned_team":"Frontend","product_area":"Onboarding","story_points":1,"sprint_quarter":"Sprint 10 / Q4 2026","start_date":"2026-02-17","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1054","stakeholder_requester":"Support Team","engineering_lead":"Bob Martinez","limitation":"Offline mode syncs only last 7 days of data.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0055","feature_title":"Video Tutorial Embedded Player","current_status":"Planned","target_release_date":"2025-05-13","priority":"Medium","assigned_team":"Frontend","product_area":"Onboarding","story_points":3,"sprint_quarter":"Sprint 8 / Q1 2025","start_date":"2025-01-22","progress_percent":8,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1055","stakeholder_requester":"Legal","engineering_lead":"Iris Tanaka","limitation":"Multi-currency limited to 25 supported currencies.","documentation":"https://docs.internal/features/video-tutorial-embedded-player \u2014 Pending Review"},{"feature_number":"FEAT-0056","feature_title":"Slack Integration","current_status":"On Hold","target_release_date":"2026-02-27","priority":"High","assigned_team":"Design","product_area":"Integrations","story_points":13,"sprint_quarter":"Sprint 16 / Q4 2025","start_date":"2025-12-23","progress_percent":31,"current_phase":"On Hold","dependencies":["FEAT-0055"],"jira_ticket_id":"PROJ-1056","stakeholder_requester":"Legal","engineering_lead":"Grace Patel","limitation":"Push notifications require app version 2.0+.","documentation":"https://docs.internal/features/slack-integration \u2014 Pending Review"},{"feature_number":"FEAT-0057","feature_title":"Jira Integration","current_status":"Planned","target_release_date":"2026-01-04","priority":"Low","assigned_team":"QA","product_area":"Integrations","story_points":8,"sprint_quarter":"Sprint 3 / Q1 2025","start_date":"2025-11-19","progress_percent":10,"current_phase":"Discovery","dependencies":["FEAT-0056","FEAT-0033"],"jira_ticket_id":"PROJ-1057","stakeholder_requester":"Legal","engineering_lead":"Iris Tanaka","limitation":"SDK auto-generation supports Python 3.8+, Node 16+, Go 1.18+ only.","documentation":"https://docs.internal/features/jira-integration \u2014 Complete"},{"feature_number":"FEAT-0058","feature_title":"GitHub Integration","current_status":"In Progress","target_release_date":"2025-04-03","priority":"High","assigned_team":"Frontend","product_area":"Integrations","story_points":21,"sprint_quarter":"Sprint 15 / Q4 2026","start_date":"2025-02-22","progress_percent":36,"current_phase":"Development","dependencies":[],"jira_ticket_id":"PROJ-1058","stakeholder_requester":"CEO","engineering_lead":"Henry Brown","limitation":"Jira integration supports Cloud only; Server/DC planned.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0059","feature_title":"Zapier Integration","current_status":"Planned","target_release_date":"2025-04-09","priority":"Medium","assigned_team":"Data","product_area":"Integrations","story_points":13,"sprint_quarter":"Sprint 18 / Q2 2025","start_date":"2025-01-15","progress_percent":13,"current_phase":"Discovery","dependencies":["FEAT-0030"],"jira_ticket_id":"PROJ-1059","stakeholder_requester":"Legal","engineering_lead":"Carol White","limitation":"Cohort reports limited to 90-day retention window.","documentation":"https://docs.internal/features/zapier-integration \u2014 Draft in Progress"},{"feature_number":"FEAT-0060","feature_title":"Salesforce CRM Integration","current_status":"Cancelled","target_release_date":"2026-07-06","priority":"High","assigned_team":"Data","product_area":"Integrations","story_points":5,"sprint_quarter":"Sprint 8 / Q4 2025","start_date":"2026-04-13","progress_percent":9,"current_phase":"Cancelled","dependencies":["FEAT-0033","FEAT-0048","FEAT-0057"],"jira_ticket_id":"PROJ-1060","stakeholder_requester":"Customer Success","engineering_lead":"Bob Martinez","limitation":"Bulk user import limited to 10,000 users per batch.","documentation":"https://docs.internal/features/salesforce-crm-integration \u2014 Pending Review"},{"feature_number":"FEAT-0061","feature_title":"HubSpot Integration","current_status":"Completed","target_release_date":"2026-01-30","priority":"Low","assigned_team":"Frontend","product_area":"Integrations","story_points":21,"sprint_quarter":"Sprint 10 / Q3 2025","start_date":"2025-11-02","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1061","stakeholder_requester":"Legal","engineering_lead":"Carol White","limitation":"Bulk user import limited to 10,000 users per batch.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0062","feature_title":"Google Analytics Connector","current_status":"In Progress","target_release_date":"2025-10-24","priority":"High","assigned_team":"Design","product_area":"Integrations","story_points":8,"sprint_quarter":"Sprint 11 / Q4 2025","start_date":"2025-07-13","progress_percent":69,"current_phase":"Design","dependencies":["FEAT-0003","FEAT-0021"],"jira_ticket_id":"PROJ-1062","stakeholder_requester":"Enterprise Clients","engineering_lead":"Grace Patel","limitation":"Tax calculation limited to US, EU, and CA jurisdictions.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0063","feature_title":"Zendesk Support Integration","current_status":"Cancelled","target_release_date":"2026-08-27","priority":"Medium","assigned_team":"DevOps","product_area":"Integrations","story_points":2,"sprint_quarter":"Sprint 5 / Q4 2025","start_date":"2026-05-30","progress_percent":21,"current_phase":"Cancelled","dependencies":[],"jira_ticket_id":"PROJ-1063","stakeholder_requester":"Legal","engineering_lead":"Iris Tanaka","limitation":"Does not support IE11 or older browsers.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0064","feature_title":"Microsoft Teams Integration","current_status":"Planned","target_release_date":"2026-03-16","priority":"High","assigned_team":"QA","product_area":"Integrations","story_points":2,"sprint_quarter":"Sprint 9 / Q1 2025","start_date":"2025-12-13","progress_percent":12,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1064","stakeholder_requester":"Enterprise Clients","engineering_lead":"Iris Tanaka","limitation":"Bulk user import limited to 10,000 users per batch.","documentation":"https://docs.internal/features/microsoft-teams-integration \u2014 Published"},{"feature_number":"FEAT-0065","feature_title":"Notion Integration","current_status":"Cancelled","target_release_date":"2025-12-01","priority":"Medium","assigned_team":"QA","product_area":"Integrations","story_points":5,"sprint_quarter":"Sprint 3 / Q1 2026","start_date":"2025-08-29","progress_percent":18,"current_phase":"Cancelled","dependencies":[],"jira_ticket_id":"PROJ-1065","stakeholder_requester":"CEO","engineering_lead":"Bob Martinez","limitation":"API rate limit: 1,000 requests/minute per API key.","documentation":"https://docs.internal/features/notion-integration \u2014 Draft in Progress"},{"feature_number":"FEAT-0066","feature_title":"Scheduled Report Delivery","current_status":"In Progress","target_release_date":"2026-03-05","priority":"Medium","assigned_team":"Full-Stack","product_area":"Reporting","story_points":1,"sprint_quarter":"Sprint 10 / Q3 2025","start_date":"2026-01-03","progress_percent":38,"current_phase":"Development","dependencies":["FEAT-0024","FEAT-0022"],"jira_ticket_id":"PROJ-1066","stakeholder_requester":"Enterprise Clients","engineering_lead":"Jake Wilson","limitation":"Third-party API rate limits may affect sync frequency.","documentation":"https://docs.internal/features/scheduled-report-delivery \u2014 Pending Review"},{"feature_number":"FEAT-0067","feature_title":"Custom Report Builder","current_status":"Completed","target_release_date":"2026-06-01","priority":"High","assigned_team":"Full-Stack","product_area":"Reporting","story_points":2,"sprint_quarter":"Sprint 9 / Q2 2025","start_date":"2026-04-16","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1067","stakeholder_requester":"Finance","engineering_lead":"Emma Singh","limitation":"Jira integration supports Cloud only; Server/DC planned.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0068","feature_title":"CSV / Excel Data Export","current_status":"Planned","target_release_date":"2025-11-25","priority":"Medium","assigned_team":"Frontend","product_area":"Reporting","story_points":8,"sprint_quarter":"Sprint 14 / Q3 2026","start_date":"2025-09-14","progress_percent":9,"current_phase":"Discovery","dependencies":["FEAT-0062","FEAT-0014"],"jira_ticket_id":"PROJ-1068","stakeholder_requester":"Marketing","engineering_lead":"Jake Wilson","limitation":"Custom dashboards limited to 20 widgets per layout.","documentation":"Not yet documented \u2014 scheduled for next sprint"},{"feature_number":"FEAT-0069","feature_title":"PDF Report Generation","current_status":"In Progress","target_release_date":"2025-05-22","priority":"Low","assigned_team":"Frontend","product_area":"Reporting","story_points":21,"sprint_quarter":"Sprint 1 / Q4 2025","start_date":"2025-02-20","progress_percent":83,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1069","stakeholder_requester":"Support Team","engineering_lead":"David Kim","limitation":"Mobile deep linking requires iOS 14+ or Android 9+.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0070","feature_title":"Shared Report Links","current_status":"On Hold","target_release_date":"2025-04-04","priority":"High","assigned_team":"Backend","product_area":"Reporting","story_points":3,"sprint_quarter":"Sprint 4 / Q2 2026","start_date":"2025-02-10","progress_percent":60,"current_phase":"On Hold","dependencies":[],"jira_ticket_id":"PROJ-1070","stakeholder_requester":"CEO","engineering_lead":"Carol White","limitation":"SSO limited to SAML 2.0; OpenID Connect planned for v2.","documentation":"Documented in README only; full docs planned"},{"feature_number":"FEAT-0071","feature_title":"iOS Native App","current_status":"On Hold","target_release_date":"2026-09-14","priority":"High","assigned_team":"Mobile","product_area":"Mobile","story_points":2,"sprint_quarter":"Sprint 12 / Q2 2026","start_date":"2026-06-28","progress_percent":27,"current_phase":"On Hold","dependencies":[],"jira_ticket_id":"PROJ-1071","stakeholder_requester":"Customer Success","engineering_lead":"Henry Brown","limitation":"CDN is region-locked to US-East and EU-West in v1.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0072","feature_title":"Android Native App","current_status":"Completed","target_release_date":"2026-02-04","priority":"High","assigned_team":"Backend","product_area":"Mobile","story_points":1,"sprint_quarter":"Sprint 13 / Q2 2025","start_date":"2026-01-10","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1072","stakeholder_requester":"CEO","engineering_lead":"Iris Tanaka","limitation":"GraphQL introspection disabled in production.","documentation":"https://docs.internal/features/android-native-app \u2014 Complete"},{"feature_number":"FEAT-0073","feature_title":"Offline Mode Support","current_status":"In Progress","target_release_date":"2025-07-30","priority":"Medium","assigned_team":"DevOps","product_area":"Mobile","story_points":8,"sprint_quarter":"Sprint 12 / Q4 2026","start_date":"2025-04-21","progress_percent":80,"current_phase":"Design","dependencies":["FEAT-0042","FEAT-0029","FEAT-0009"],"jira_ticket_id":"PROJ-1073","stakeholder_requester":"Enterprise Clients","engineering_lead":"Emma Singh","limitation":"CDN is region-locked to US-East and EU-West in v1.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0074","feature_title":"Mobile Deep Linking","current_status":"Planned","target_release_date":"2025-07-21","priority":"Critical","assigned_team":"Backend","product_area":"Mobile","story_points":5,"sprint_quarter":"Sprint 8 / Q1 2025","start_date":"2025-05-19","progress_percent":14,"current_phase":"Discovery","dependencies":["FEAT-0070","FEAT-0054","FEAT-0020"],"jira_ticket_id":"PROJ-1074","stakeholder_requester":"Legal","engineering_lead":"Bob Martinez","limitation":"Cohort reports limited to 90-day retention window.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0075","feature_title":"App Performance Optimization","current_status":"Completed","target_release_date":"2026-05-15","priority":"Low","assigned_team":"Frontend","product_area":"Mobile","story_points":13,"sprint_quarter":"Sprint 15 / Q3 2025","start_date":"2026-04-01","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1075","stakeholder_requester":"Finance","engineering_lead":"Frank Liu","limitation":"SDK auto-generation supports Python 3.8+, Node 16+, Go 1.18+ only.","documentation":"https://docs.internal/features/app-performance-optimization \u2014 Draft in Progress"},{"feature_number":"FEAT-0076","feature_title":"Audit Log Viewer","current_status":"On Hold","target_release_date":"2025-07-11","priority":"Medium","assigned_team":"Backend","product_area":"Security","story_points":3,"sprint_quarter":"Sprint 15 / Q2 2025","start_date":"2025-04-04","progress_percent":23,"current_phase":"On Hold","dependencies":[],"jira_ticket_id":"PROJ-1076","stakeholder_requester":"Marketing","engineering_lead":"Alice Chen","limitation":"Only supports OAuth 2.0 providers; legacy OAuth 1.0 not supported.","documentation":"Documented in README only; full docs planned"},{"feature_number":"FEAT-0077","feature_title":"Data Encryption at Rest","current_status":"Planned","target_release_date":"2025-10-22","priority":"High","assigned_team":"Design","product_area":"Security","story_points":1,"sprint_quarter":"Sprint 7 / Q2 2026","start_date":"2025-08-27","progress_percent":4,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1077","stakeholder_requester":"CTO","engineering_lead":"Emma Singh","limitation":"Only supports OAuth 2.0 providers; legacy OAuth 1.0 not supported.","documentation":"Documented in README only; full docs planned"},{"feature_number":"FEAT-0078","feature_title":"IP Allowlist / Blocklist","current_status":"Cancelled","target_release_date":"2026-04-27","priority":"Medium","assigned_team":"Data","product_area":"Security","story_points":1,"sprint_quarter":"Sprint 1 / Q1 2025","start_date":"2026-01-02","progress_percent":15,"current_phase":"Cancelled","dependencies":[],"jira_ticket_id":"PROJ-1078","stakeholder_requester":"Product Team","engineering_lead":"Emma Singh","limitation":"Search index updates have up to 5-minute delay.","documentation":"https://docs.internal/features/ip-allowlist--blocklist \u2014 Complete"},{"feature_number":"FEAT-0079","feature_title":"GDPR Compliance Tools","current_status":"Planned","target_release_date":"2026-09-07","priority":"Medium","assigned_team":"Backend","product_area":"Security","story_points":1,"sprint_quarter":"Sprint 12 / Q4 2025","start_date":"2026-06-10","progress_percent":3,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1079","stakeholder_requester":"Finance","engineering_lead":"Alice Chen","limitation":"A/B testing limited to 5 active experiments at a time.","documentation":"Not yet documented \u2014 scheduled for next sprint"},{"feature_number":"FEAT-0080","feature_title":"SOC 2 Compliance Features","current_status":"In Progress","target_release_date":"2026-08-31","priority":"Medium","assigned_team":"Backend","product_area":"Security","story_points":5,"sprint_quarter":"Sprint 4 / Q4 2025","start_date":"2026-05-18","progress_percent":29,"current_phase":"Development","dependencies":[],"jira_ticket_id":"PROJ-1080","stakeholder_requester":"CEO","engineering_lead":"Carol White","limitation":"A/B testing limited to 5 active experiments at a time.","documentation":"https://docs.internal/features/soc-2-compliance-features \u2014 Published"},{"feature_number":"FEAT-0081","feature_title":"Security Dashboard & Alerts","current_status":"Planned","target_release_date":"2026-08-18","priority":"Medium","assigned_team":"Design","product_area":"Security","story_points":13,"sprint_quarter":"Sprint 20 / Q3 2025","start_date":"2026-06-28","progress_percent":14,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1081","stakeholder_requester":"Finance","engineering_lead":"Bob Martinez","limitation":"Does not support IE11 or older browsers.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0082","feature_title":"Penetration Testing Automation","current_status":"Completed","target_release_date":"2026-04-21","priority":"High","assigned_team":"Mobile","product_area":"Security","story_points":2,"sprint_quarter":"Sprint 15 / Q4 2025","start_date":"2026-02-13","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1082","stakeholder_requester":"Customer Success","engineering_lead":"Frank Liu","limitation":"API rate limit: 1,000 requests/minute per API key.","documentation":"https://docs.internal/features/penetration-testing-automation \u2014 Published"},{"feature_number":"FEAT-0083","feature_title":"CDN Integration","current_status":"In Progress","target_release_date":"2026-04-14","priority":"High","assigned_team":"Full-Stack","product_area":"Performance","story_points":1,"sprint_quarter":"Sprint 3 / Q1 2025","start_date":"2026-03-19","progress_percent":67,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1083","stakeholder_requester":"Finance","engineering_lead":"Jake Wilson","limitation":"Limited to 10 concurrent WebSocket connections per user.","documentation":"https://docs.internal/features/cdn-integration \u2014 Needs Update"},{"feature_number":"FEAT-0084","feature_title":"Database Query Optimization","current_status":"In Progress","target_release_date":"2026-01-20","priority":"Medium","assigned_team":"Mobile","product_area":"Performance","story_points":21,"sprint_quarter":"Sprint 2 / Q4 2026","start_date":"2025-10-22","progress_percent":65,"current_phase":"Development","dependencies":["FEAT-0028","FEAT-0020","FEAT-0062"],"jira_ticket_id":"PROJ-1084","stakeholder_requester":"Marketing","engineering_lead":"Bob Martinez","limitation":"Bulk user import limited to 10,000 users per batch.","documentation":"Not yet documented \u2014 scheduled for next sprint"},{"feature_number":"FEAT-0085","feature_title":"Redis Caching Layer","current_status":"On Hold","target_release_date":"2025-04-28","priority":"High","assigned_team":"Data","product_area":"Performance","story_points":8,"sprint_quarter":"Sprint 18 / Q2 2025","start_date":"2025-01-27","progress_percent":52,"current_phase":"On Hold","dependencies":[],"jira_ticket_id":"PROJ-1085","stakeholder_requester":"Customer Success","engineering_lead":"Carol White","limitation":"Only supports OAuth 2.0 providers; legacy OAuth 1.0 not supported.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0086","feature_title":"Load Balancing Configuration","current_status":"Completed","target_release_date":"2026-03-09","priority":"High","assigned_team":"Frontend","product_area":"Performance","story_points":1,"sprint_quarter":"Sprint 19 / Q2 2025","start_date":"2026-02-15","progress_percent":100,"current_phase":"Launched","dependencies":["FEAT-0004","FEAT-0012","FEAT-0068"],"jira_ticket_id":"PROJ-1086","stakeholder_requester":"Legal","engineering_lead":"Grace Patel","limitation":"Custom dashboards limited to 20 widgets per layout.","documentation":"Not yet documented \u2014 scheduled for next sprint"},{"feature_number":"FEAT-0087","feature_title":"Lazy Loading for Assets","current_status":"In Progress","target_release_date":"2025-09-29","priority":"High","assigned_team":"Data","product_area":"Performance","story_points":21,"sprint_quarter":"Sprint 5 / Q1 2025","start_date":"2025-06-11","progress_percent":26,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1087","stakeholder_requester":"Legal","engineering_lead":"Grace Patel","limitation":"Offline mode syncs only last 7 days of data.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0088","feature_title":"Bulk User Import / Export","current_status":"Completed","target_release_date":"2025-06-13","priority":"Medium","assigned_team":"Frontend","product_area":"User Management","story_points":8,"sprint_quarter":"Sprint 14 / Q1 2025","start_date":"2025-04-24","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1088","stakeholder_requester":"Customer Success","engineering_lead":"Iris Tanaka","limitation":"Multi-currency limited to 25 supported currencies.","documentation":"Documented in README only; full docs planned"},{"feature_number":"FEAT-0089","feature_title":"Role-Based Access Control (RBAC)","current_status":"Planned","target_release_date":"2025-09-09","priority":"High","assigned_team":"Design","product_area":"User Management","story_points":1,"sprint_quarter":"Sprint 7 / Q2 2025","start_date":"2025-05-21","progress_percent":8,"current_phase":"Discovery","dependencies":["FEAT-0001"],"jira_ticket_id":"PROJ-1089","stakeholder_requester":"CTO","engineering_lead":"Grace Patel","limitation":"In-app notifications retained for 30 days only.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0090","feature_title":"User Impersonation for Support","current_status":"Planned","target_release_date":"2025-04-23","priority":"Medium","assigned_team":"Frontend","product_area":"User Management","story_points":8,"sprint_quarter":"Sprint 13 / Q3 2025","start_date":"2025-02-13","progress_percent":0,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1090","stakeholder_requester":"Support Team","engineering_lead":"Frank Liu","limitation":"Bulk user import limited to 10,000 users per batch.","documentation":"https://docs.internal/features/user-impersonation-for-support \u2014 Draft in Progress"},{"feature_number":"FEAT-0091","feature_title":"Team Hierarchy Management","current_status":"In Progress","target_release_date":"2026-01-03","priority":"Medium","assigned_team":"DevOps","product_area":"User Management","story_points":3,"sprint_quarter":"Sprint 1 / Q1 2025","start_date":"2025-11-29","progress_percent":78,"current_phase":"QA","dependencies":[],"jira_ticket_id":"PROJ-1091","stakeholder_requester":"CEO","engineering_lead":"Grace Patel","limitation":"Third-party API rate limits may affect sync frequency.","documentation":"https://docs.internal/features/team-hierarchy-management \u2014 Published"},{"feature_number":"FEAT-0092","feature_title":"User Activity Feed","current_status":"Planned","target_release_date":"2025-10-10","priority":"Medium","assigned_team":"Design","product_area":"User Management","story_points":5,"sprint_quarter":"Sprint 11 / Q3 2026","start_date":"2025-08-15","progress_percent":5,"current_phase":"Discovery","dependencies":["FEAT-0015","FEAT-0068","FEAT-0066"],"jira_ticket_id":"PROJ-1092","stakeholder_requester":"Marketing","engineering_lead":"Frank Liu","limitation":"Jira integration supports Cloud only; Server/DC planned.","documentation":"Not yet documented \u2014 scheduled for next sprint"},{"feature_number":"FEAT-0093","feature_title":"Geographic Usage Heatmap","current_status":"Completed","target_release_date":"2025-08-27","priority":"Low","assigned_team":"QA","product_area":"Analytics","story_points":2,"sprint_quarter":"Sprint 9 / Q1 2025","start_date":"2025-07-22","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1093","stakeholder_requester":"Legal","engineering_lead":"Henry Brown","limitation":"Search index updates have up to 5-minute delay.","documentation":"https://docs.internal/features/geographic-usage-heatmap \u2014 Draft in Progress"},{"feature_number":"FEAT-0094","feature_title":"KPI Summary Cards","current_status":"Completed","target_release_date":"2025-08-13","priority":"Medium","assigned_team":"Mobile","product_area":"Dashboard","story_points":8,"sprint_quarter":"Sprint 11 / Q3 2026","start_date":"2025-06-04","progress_percent":100,"current_phase":"Launched","dependencies":["FEAT-0081","FEAT-0039"],"jira_ticket_id":"PROJ-1094","stakeholder_requester":"Marketing","engineering_lead":"Alice Chen","limitation":"LDAP sync runs every 15 minutes; real-time not supported.","documentation":"N/A \u2014 Internal infrastructure feature"},{"feature_number":"FEAT-0095","feature_title":"Usage-Based Billing Engine","current_status":"In Progress","target_release_date":"2025-07-04","priority":"High","assigned_team":"Mobile","product_area":"Billing","story_points":1,"sprint_quarter":"Sprint 3 / Q3 2025","start_date":"2025-04-03","progress_percent":84,"current_phase":"QA","dependencies":["FEAT-0071","FEAT-0006","FEAT-0058"],"jira_ticket_id":"PROJ-1095","stakeholder_requester":"Marketing","engineering_lead":"David Kim","limitation":"Cohort reports limited to 90-day retention window.","documentation":"Documented in README only; full docs planned"},{"feature_number":"FEAT-0096","feature_title":"API Playground & Explorer","current_status":"Completed","target_release_date":"2026-09-05","priority":"Medium","assigned_team":"Full-Stack","product_area":"API","story_points":5,"sprint_quarter":"Sprint 3 / Q1 2025","start_date":"2026-06-01","progress_percent":100,"current_phase":"Launched","dependencies":["FEAT-0091"],"jira_ticket_id":"PROJ-1096","stakeholder_requester":"Finance","engineering_lead":"Iris Tanaka","limitation":"Offline mode syncs only last 7 days of data.","documentation":"Feature spec in Confluence; public docs not started"},{"feature_number":"FEAT-0097","feature_title":"Contextual Tooltips System","current_status":"Completed","target_release_date":"2025-06-18","priority":"High","assigned_team":"Full-Stack","product_area":"Onboarding","story_points":5,"sprint_quarter":"Sprint 20 / Q4 2025","start_date":"2025-02-23","progress_percent":100,"current_phase":"Launched","dependencies":[],"jira_ticket_id":"PROJ-1097","stakeholder_requester":"CEO","engineering_lead":"Frank Liu","limitation":"Third-party API rate limits may affect sync frequency.","documentation":"https://docs.internal/features/contextual-tooltips-system \u2014 Published"},{"feature_number":"FEAT-0098","feature_title":"Multi-tenant Data Isolation","current_status":"In Progress","target_release_date":"2025-07-22","priority":"High","assigned_team":"Frontend","product_area":"Security","story_points":21,"sprint_quarter":"Sprint 3 / Q2 2025","start_date":"2025-05-25","progress_percent":70,"current_phase":"Development","dependencies":["FEAT-0011","FEAT-0040","FEAT-0072"],"jira_ticket_id":"PROJ-1098","stakeholder_requester":"CTO","engineering_lead":"Frank Liu","limitation":"Cohort reports limited to 90-day retention window.","documentation":"Wiki page created \u2014 API docs pending"},{"feature_number":"FEAT-0099","feature_title":"Background Job Queue","current_status":"Completed","target_release_date":"2026-08-04","priority":"Low","assigned_team":"Data","product_area":"Performance","story_points":13,"sprint_quarter":"Sprint 14 / Q1 2026","start_date":"2026-06-05","progress_percent":100,"current_phase":"Launched","dependencies":["FEAT-0024","FEAT-0028"],"jira_ticket_id":"PROJ-1099","stakeholder_requester":"Sales Team","engineering_lead":"Henry Brown","limitation":"Mobile deep linking requires iOS 14+ or Android 9+.","documentation":"https://docs.internal/features/background-job-queue \u2014 Published"},{"feature_number":"FEAT-0100","feature_title":"Biometric Auth on Mobile","current_status":"Planned","target_release_date":"2026-07-12","priority":"High","assigned_team":"Backend","product_area":"Mobile","story_points":21,"sprint_quarter":"Sprint 18 / Q1 2026","start_date":"2026-06-24","progress_percent":10,"current_phase":"Discovery","dependencies":[],"jira_ticket_id":"PROJ-1100","stakeholder_requester":"Enterprise Clients","engineering_lead":"Jake Wilson","limitation":"Maximum file upload size capped at 100MB.","documentation":"Documented in README only; full docs planned"}];
+
+let sortCol = 'feature_number';
+let sortAsc = true;
+let openRows = new Set();
+
+const statusClass = {
+  'Completed':   's-completed',
+  'In Progress': 's-in-progress',
+  'Planned':     's-planned',
+  'On Hold':     's-on-hold',
+  'Cancelled':   's-cancelled'
+};
+const priorityClass = {
+  'Critical': 'p-critical',
+  'High':     'p-high',
+  'Medium':   'p-medium',
+  'Low':      'p-low'
+};
+const phaseClass = {
+  'Launched':    'phase-launched',
+  'Development': 'phase-development',
+  'QA':          'phase-qa',
+  'Design':      'phase-design'
+};
+
+function progressClass(p) {
+  if (p === 100) return 'p100';
+  if (p >= 75)  return 'p75';
+  if (p >= 50)  return 'p50';
+  if (p >= 25)  return 'p25';
+  return 'plow';
+}
+
+function escape(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function filtered() {
+  const q    = document.getElementById('searchBox').value.toLowerCase();
+  const st   = document.getElementById('filterStatus').value;
+  const pr   = document.getElementById('filterPriority').value;
+  const ar   = document.getElementById('filterArea').value;
+  const tm   = document.getElementById('filterTeam').value;
+  const ph   = document.getElementById('filterPhase').value;
+
+  return RAW.filter(f => {
+    if (st && f.current_status !== st) return false;
+    if (pr && f.priority !== pr) return false;
+    if (ar && f.product_area !== ar) return false;
+    if (tm && f.assigned_team !== tm) return false;
+    if (ph && f.current_phase !== ph) return false;
+    if (q) {
+      const hay = [f.feature_number, f.feature_title, f.engineering_lead,
+                   f.jira_ticket_id, f.stakeholder_requester, f.product_area,
+                   f.assigned_team, f.limitation, f.documentation].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function sorted(arr) {
+  return [...arr].sort((a, b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (typeof av === 'number') return sortAsc ? av - bv : bv - av;
+    return sortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  });
+}
+
+function render() {
+  const data = sorted(filtered());
+  const body = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+  document.getElementById('countBadge').textContent = data.length;
+
+  if (!data.length) {
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  body.innerHTML = data.map(f => {
+    const idx = f.feature_number;
+    const isOpen = openRows.has(idx);
+    const pc = progressClass(f.progress_percent);
+    const deps = f.dependencies.length
+      ? f.dependencies.map(d => `<span class="dep-tag">${escape(d)}</span>`).join('')
+      : '<span style="color:var(--text-muted)">None</span>';
+
+    return `
+    <tr class="row-expand" onclick="toggleDetail('${idx}')">
+      <td><span class="expand-icon ${isOpen ? 'open' : ''}" id="icon-${idx}">&rsaquo;</span></td>
+      <td><span class="feat-num">${escape(f.feature_number)}</span></td>
+      <td class="feature-title" style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escape(f.feature_title)}">${escape(f.feature_title)}</td>
+      <td><span class="badge ${statusClass[f.current_status] || ''}">${escape(f.current_status)}</span></td>
+      <td><span class="badge ${priorityClass[f.priority] || ''}">${escape(f.priority)}</span></td>
+      <td style="color:var(--text-muted)">${escape(f.product_area)}</td>
+      <td style="color:var(--text-muted)">${escape(f.assigned_team)}</td>
+      <td><span class="phase-badge ${phaseClass[f.current_phase] || ''}">${escape(f.current_phase)}</span></td>
+      <td>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill ${pc}" style="width:${f.progress_percent}%"></div></div>
+          <span class="progress-val">${f.progress_percent}%</span>
+        </div>
+      </td>
+      <td style="text-align:center;color:var(--text-muted)">${f.story_points}</td>
+      <td style="color:var(--text-muted);white-space:nowrap">${escape(f.start_date)}</td>
+      <td style="color:var(--text-muted);white-space:nowrap">${escape(f.target_release_date)}</td>
+      <td style="white-space:nowrap">${escape(f.engineering_lead)}</td>
+      <td><span class="jira-id">${escape(f.jira_ticket_id)}</span></td>
+    </tr>
+    <tr class="detail-row ${isOpen ? 'open' : ''}" id="detail-${idx}">
+      <td colspan="14">
+        <div class="detail-grid">
+          <div class="detail-item"><label>Sprint / Quarter</label><div class="val">${escape(f.sprint_quarter)}</div></div>
+          <div class="detail-item"><label>Stakeholder / Requester</label><div class="val">${escape(f.stakeholder_requester)}</div></div>
+          <div class="detail-item"><label>Dependencies</label><div class="val">${deps}</div></div>
+          <div class="detail-item"><label>Limitation</label><div class="val">${escape(f.limitation)}</div></div>
+          <div class="detail-item" style="grid-column: span 2"><label>Documentation</label><div class="val">${escape(f.documentation)}</div></div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleDetail(idx) {
+  const detail = document.getElementById('detail-' + idx);
+  const icon   = document.getElementById('icon-' + idx);
+  if (!detail) return;
+  if (openRows.has(idx)) {
+    openRows.delete(idx);
+    detail.classList.remove('open');
+    icon.classList.remove('open');
+  } else {
+    openRows.add(idx);
+    detail.classList.add('open');
+    icon.classList.add('open');
+  }
+}
+
+function sortBy(col) {
+  if (sortCol === col) { sortAsc = !sortAsc; }
+  else { sortCol = col; sortAsc = true; }
+  document.querySelectorAll('thead th').forEach(th => {
+    th.classList.remove('sorted');
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = '↕';
+  });
+  const th = document.querySelector(`thead th[data-col="${col}"]`);
+  if (th) {
+    th.classList.add('sorted');
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = sortAsc ? '↑' : '↓';
+  }
+  render();
+}
+
+function resetFilters() {
+  document.getElementById('searchBox').value = '';
+  ['filterStatus','filterPriority','filterArea','filterTeam','filterPhase']
+    .forEach(id => document.getElementById(id).value = '');
+  render();
+}
+
+// Stats
+function updateStats() {
+  const cnt = (s) => RAW.filter(f => f.current_status === s).length;
+  document.getElementById('stat-total').textContent = RAW.length;
+  document.getElementById('stat-done').textContent  = cnt('Completed');
+  document.getElementById('stat-wip').textContent   = cnt('In Progress');
+  document.getElementById('stat-plan').textContent  = cnt('Planned');
+  document.getElementById('stat-hold').textContent  = cnt('On Hold');
+}
+
+['searchBox','filterStatus','filterPriority','filterArea','filterTeam','filterPhase']
+  .forEach(id => document.getElementById(id).addEventListener('input', render));
+
+updateStats();
+render();
+</script>
+</body>
+</html>
