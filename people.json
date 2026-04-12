@@ -1,12 +1,13 @@
 {
-  "total_people": 22,
+  "total_people": 24,
   "roles": [
     "Product Manager",
     "Program Manager",
     "Engineering Lead",
     "Developer",
     "Hardware Engineer",
-    "Test Engineer"
+    "Test Engineer",
+    "Executive"
   ],
   "people": [
     {
@@ -162,6 +163,20 @@
       "role": "Test Engineer",
       "email": "quinn.murphy@company.com",
       "team": "QA"
+    },
+    {
+      "id": "P023",
+      "name": "Victoria Chen",
+      "role": "Executive",
+      "email": "victoria.chen@company.com",
+      "team": "Leadership"
+    },
+    {
+      "id": "P024",
+      "name": "Marcus Reid",
+      "role": "Executive",
+      "email": "marcus.reid@company.com",
+      "team": "Leadership"
     }
   ]
 }
