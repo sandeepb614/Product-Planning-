@@ -1,0 +1,167 @@
+{
+  "total_people": 22,
+  "roles": [
+    "Product Manager",
+    "Program Manager",
+    "Engineering Lead",
+    "Developer",
+    "Hardware Engineer",
+    "Test Engineer"
+  ],
+  "people": [
+    {
+      "id": "P001",
+      "name": "Sarah Johnson",
+      "role": "Product Manager",
+      "email": "sarah.johnson@company.com",
+      "team": "Product"
+    },
+    {
+      "id": "P002",
+      "name": "Daniel Park",
+      "role": "Product Manager",
+      "email": "daniel.park@company.com",
+      "team": "Product"
+    },
+    {
+      "id": "P003",
+      "name": "Mia Torres",
+      "role": "Product Manager",
+      "email": "mia.torres@company.com",
+      "team": "Product"
+    },
+    {
+      "id": "P004",
+      "name": "James Whitfield",
+      "role": "Program Manager",
+      "email": "james.whitfield@company.com",
+      "team": "PMO"
+    },
+    {
+      "id": "P005",
+      "name": "Linda Nguyen",
+      "role": "Program Manager",
+      "email": "linda.nguyen@company.com",
+      "team": "PMO"
+    },
+    {
+      "id": "P006",
+      "name": "Alice Chen",
+      "role": "Engineering Lead",
+      "email": "alice.chen@company.com",
+      "team": "Engineering"
+    },
+    {
+      "id": "P007",
+      "name": "Bob Martinez",
+      "role": "Engineering Lead",
+      "email": "bob.martinez@company.com",
+      "team": "Engineering"
+    },
+    {
+      "id": "P008",
+      "name": "Carol White",
+      "role": "Developer",
+      "email": "carol.white@company.com",
+      "team": "Backend"
+    },
+    {
+      "id": "P009",
+      "name": "David Kim",
+      "role": "Developer",
+      "email": "david.kim@company.com",
+      "team": "Frontend"
+    },
+    {
+      "id": "P010",
+      "name": "Emma Singh",
+      "role": "Developer",
+      "email": "emma.singh@company.com",
+      "team": "Mobile"
+    },
+    {
+      "id": "P011",
+      "name": "Frank Liu",
+      "role": "Developer",
+      "email": "frank.liu@company.com",
+      "team": "Backend"
+    },
+    {
+      "id": "P012",
+      "name": "Grace Patel",
+      "role": "Developer",
+      "email": "grace.patel@company.com",
+      "team": "Full-Stack"
+    },
+    {
+      "id": "P013",
+      "name": "Henry Brown",
+      "role": "Developer",
+      "email": "henry.brown@company.com",
+      "team": "Frontend"
+    },
+    {
+      "id": "P014",
+      "name": "Iris Tanaka",
+      "role": "Developer",
+      "email": "iris.tanaka@company.com",
+      "team": "Backend"
+    },
+    {
+      "id": "P015",
+      "name": "Jake Wilson",
+      "role": "Developer",
+      "email": "jake.wilson@company.com",
+      "team": "DevOps"
+    },
+    {
+      "id": "P016",
+      "name": "Karen Scott",
+      "role": "Hardware Engineer",
+      "email": "karen.scott@company.com",
+      "team": "Hardware"
+    },
+    {
+      "id": "P017",
+      "name": "Leo Fernandez",
+      "role": "Hardware Engineer",
+      "email": "leo.fernandez@company.com",
+      "team": "Hardware"
+    },
+    {
+      "id": "P018",
+      "name": "Maya Robinson",
+      "role": "Hardware Engineer",
+      "email": "maya.robinson@company.com",
+      "team": "Hardware"
+    },
+    {
+      "id": "P019",
+      "name": "Nathan Clark",
+      "role": "Test Engineer",
+      "email": "nathan.clark@company.com",
+      "team": "QA"
+    },
+    {
+      "id": "P020",
+      "name": "Olivia Adams",
+      "role": "Test Engineer",
+      "email": "olivia.adams@company.com",
+      "team": "QA"
+    },
+    {
+      "id": "P021",
+      "name": "Peter Zhang",
+      "role": "Test Engineer",
+      "email": "peter.zhang@company.com",
+      "team": "QA"
+    },
+    {
+      "id": "P022",
+      "name": "Quinn Murphy",
+      "role": "Test Engineer",
+      "email": "quinn.murphy@company.com",
+      "team": "QA"
+    }
+  ]
+}
