@@ -121,22 +121,24 @@
 .area-track{flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
 .area-fill{height:100%;border-radius:3px;background:var(--accent)}
 .area-count{min-width:24px;font-weight:600;color:var(--text);font-size:12px}
-.tl-quarter{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden}
-.tl-q-header{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap}
-.tl-q-name{font-size:15px;font-weight:700;color:var(--text);min-width:80px}
-.tl-q-end{font-size:11px;color:var(--text-muted)}
-.tl-q-stats{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
-.tl-q-stat{font-size:11px;font-weight:600;border-radius:20px;padding:2px 8px}
-.tl-q-total{background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)}
-.tl-q-rel{background:#0d3d2a;color:#34d399}
-.tl-q-blk{background:#3a1a1a;color:#f87171}
-.tl-q-prog{background:#1e2f5a;color:#60a5fa}
-.tl-features{display:flex;flex-wrap:wrap;gap:8px;padding:14px 18px}
-.tl-feat-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;cursor:default;transition:border-color .2s}
-.tl-feat-card:hover{border-color:#3e4460}
-.tl-feat-num{font-family:"SF Mono","Fira Code",monospace;font-size:10px;color:var(--accent);font-weight:600;display:block;margin-bottom:4px}
-.tl-feat-title{font-size:11px;color:var(--text);font-weight:500;display:block;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
-.tl-feat-badges{display:flex;gap:4px;flex-wrap:wrap}
+.tl-scroll{overflow-x:auto;padding-bottom:12px}
+.tl-columns{display:flex;gap:0;min-width:max-content}
+.tl-col{min-width:200px;max-width:200px;border-right:1px solid var(--border)}
+.tl-col:last-child{border-right:none}
+.tl-col-header{padding:12px 14px;background:var(--surface2);border-bottom:1px solid var(--border);position:sticky;top:0}
+.tl-col-name{font-size:13px;font-weight:700;color:var(--text);display:block}
+.tl-col-count{font-size:11px;color:var(--text-muted);margin-top:2px;display:block}
+.tl-col-body{padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.tl-pill{font-size:11px;color:var(--text);padding:5px 8px;border-radius:5px;background:var(--surface2);border-left:3px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default;transition:background .15s}
+.tl-pill:hover{background:#2a2e42}
+.tl-pill.stage-released,.tl-pill.stage-released-with-exception{border-left-color:#34d399}
+.tl-pill.stage-blocked{border-left-color:#f87171}
+.tl-pill.stage-qa-testing{border-left-color:#22d3ee}
+.tl-pill.stage-draft,.tl-pill.stage-pgm-review{border-left-color:#3e4460}
+.tl-pill.stage-hw-input{border-left-color:#fb923c}
+.tl-pill.stage-dev-scheduling{border-left-color:#a78bfa}
+.tl-pill.stage-test-planning{border-left-color:#86efac}
+.tl-pill.stage-exception-pending-pm{border-left-color:#fbbf24}
 .tl-empty{color:var(--text-muted);font-size:13px;padding:20px;text-align:center}
 </style>
 </head>
@@ -257,9 +259,8 @@
 
 </div>
 
-<div id="timelineView" style="display:none;padding:24px">
-  <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:13px;color:var(--text-muted)">Filter by stage:</span>
+<div id="timelineView" style="display:none;padding:16px 24px 24px">
+  <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <select id="tlStageFilter" onchange="renderTimeline()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:5px 10px;font-size:12px;outline:none">
       <option value="">All Stages</option>
       <option>Draft</option><option>PgM Review</option><option>HW Input</option>
@@ -275,8 +276,9 @@
       <option>Reporting</option><option>Search</option><option>Security</option>
       <option>Settings</option><option>User Management</option>
     </select>
+    <span id="tlCount" style="font-size:12px;color:var(--text-muted);margin-left:4px"></span>
   </div>
-  <div id="timelineContent"></div>
+  <div class="tl-scroll"><div id="timelineContent"></div></div>
 </div>
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 
@@ -682,63 +684,44 @@ function renderDashboard() {
 function renderTimeline() {
   const stageFilter = document.getElementById('tlStageFilter').value;
   const areaFilter  = document.getElementById('tlAreaFilter').value;
-
   const QUARTER_LABELS = {
     '2025-03-31':'Q1 2025','2025-06-30':'Q2 2025','2025-09-30':'Q3 2025','2025-12-31':'Q4 2025',
     '2026-03-31':'Q1 2026','2026-06-30':'Q2 2026','2026-09-30':'Q3 2026','2026-12-31':'Q4 2026'
   };
-  const PRIORITY_CLASS = {Critical:'p-critical',High:'p-high',Medium:'p-medium',Low:'p-low'};
+  const ALL_QUARTERS = ['2025-03-31','2025-06-30','2025-09-30','2025-12-31',
+                        '2026-03-31','2026-06-30','2026-09-30'];
 
-  let filtered = DATA.filter(f => {
+  const filtered = DATA.filter(f => {
     if (stageFilter && f.workflow_stage !== stageFilter) return false;
     if (areaFilter  && f.product_area   !== areaFilter)  return false;
     return true;
   });
 
   const byQ = {};
-  filtered.forEach(f => {
-    const q = f.target_release_date;
-    if (!byQ[q]) byQ[q] = [];
-    byQ[q].push(f);
-  });
+  ALL_QUARTERS.forEach(q => byQ[q] = []);
+  filtered.forEach(f => { if (byQ[f.target_release_date]) byQ[f.target_release_date].push(f); });
 
-  const quarters = Object.keys(byQ).sort();
-  if (!quarters.length) {
-    document.getElementById('timelineContent').innerHTML = '<p class="tl-empty">No features match the selected filters.</p>';
-    return;
-  }
+  const tlCount = document.getElementById('tlCount');
+  if (tlCount) tlCount.textContent = filtered.length + ' features';
 
-  document.getElementById('timelineContent').innerHTML = quarters.map(q => {
-    const feats = byQ[q];
-    const rel   = feats.filter(f => ['Released','Released with Exception'].includes(f.workflow_stage)).length;
-    const blk   = feats.filter(f => f.workflow_stage === 'Blocked').length;
-    const prog  = feats.filter(f => ['HW Input','Dev Scheduling','Test Planning','QA Testing'].includes(f.workflow_stage)).length;
-    const label = QUARTER_LABELS[q] || q;
-
-    return `<div class="tl-quarter">
-      <div class="tl-q-header">
-        <span class="tl-q-name">${label}</span>
-        <span class="tl-q-end">Due ${q}</span>
-        <div class="tl-q-stats">
-          <span class="tl-q-stat tl-q-total">${feats.length} features</span>
-          ${rel  ? `<span class="tl-q-stat tl-q-rel">${rel} released</span>` : ''}
-          ${prog ? `<span class="tl-q-stat tl-q-prog">${prog} in progress</span>` : ''}
-          ${blk  ? `<span class="tl-q-stat tl-q-blk">${blk} blocked</span>` : ''}
+  document.getElementById('timelineContent').innerHTML =
+    `<div class="tl-columns">` +
+    ALL_QUARTERS.map(q => {
+      const feats = byQ[q].sort((a,b) => a.feature_title.localeCompare(b.feature_title));
+      return `<div class="tl-col">
+        <div class="tl-col-header">
+          <span class="tl-col-name">${QUARTER_LABELS[q]}</span>
+          <span class="tl-col-count">${feats.length} feature${feats.length!==1?'s':''}</span>
         </div>
-      </div>
-      <div class="tl-features">
-        ${feats.sort((a,b) => a.feature_number.localeCompare(b.feature_number)).map(f => `
-          <div class="tl-feat-card" title="${esc(f.feature_title)}&#10;Stage: ${esc(f.workflow_stage)}&#10;Area: ${esc(f.product_area)}">
-            <span class="tl-feat-num">${esc(f.feature_number)}</span>
-            <span class="tl-feat-title">${esc(f.feature_title)}</span>
-            <div class="tl-feat-badges">
-              <span class="badge ${PRIORITY_CLASS[f.priority]||''}" style="font-size:10px;padding:1px 7px">${esc(f.priority)}</span>
-              <span class="stage-badge stage-${(f.workflow_stage||'').replace(/ /g,'-').toLowerCase()}" style="font-size:10px;padding:2px 6px">${esc(f.workflow_stage)}</span>
-            </div>
-          </div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
+        <div class="tl-col-body">
+          ${feats.length
+            ? feats.map(f => `<div class="tl-pill stage-${(f.workflow_stage||'').replace(/ /g,'-').toLowerCase()}" title="${esc(f.feature_title)} — ${esc(f.workflow_stage)}">${esc(f.feature_title)}</div>`).join('')
+            : '<span style="font-size:11px;color:var(--text-muted);padding:4px 6px">—</span>'
+          }
+        </div>
+      </div>`;
+    }).join('') +
+    `</div>`;
 }
 
 // Init: start on Data view
