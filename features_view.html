@@ -141,13 +141,16 @@
 .tl-pill.stage-exception-pending-pm{border-left-color:#fbbf24}
 .tl-empty{color:var(--text-muted);font-size:13px;padding:20px;text-align:center}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 </head>
 <body>
 
 <header>
   <h1>Product Planning — Feature Tracker</h1>
   
-  <select id="viewSelect" onchange="switchView(this.value)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 12px;font-size:13px;cursor:pointer;outline:none;margin-left:auto">
+  <button class="btn btn-purple" onclick="generatePptx(this)" style="margin-left:auto">&#11015; Download Slides</button>
+
+  <select id="viewSelect" onchange="switchView(this.value)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 12px;font-size:13px;cursor:pointer;outline:none">
     <option value="dashboard">Dashboard</option>
     <option value="data" selected>Data View</option>
     <option value="timeline">Quarterly Timeline</option>
@@ -722,6 +725,134 @@ function renderTimeline() {
       </div>`;
     }).join('') +
     `</div>`;
+}
+
+// ── PowerPoint slide export ───────────────────────────────────────────────────
+const PPTX_STAGE_COLOR = {
+  'Released':               '34D399',
+  'Released with Exception':'34D399',
+  'Blocked':                'F87171',
+  'QA Testing':             '22D3EE',
+  'HW Input':               'FB923C',
+  'Dev Scheduling':         'A78BFA',
+  'Test Planning':          '86EFAC',
+  'Exception Pending PM':   'FBBF24',
+  'Draft':                  '554C7E',
+  'PgM Review':             '554C7E',
+  'On Hold':                '554C7E',
+  'Cancelled':              '4B446A',
+};
+
+const PPTX_QUARTERS = [
+  ['2025-03-31','Q1 2025'],['2025-06-30','Q2 2025'],['2025-09-30','Q3 2025'],
+  ['2025-12-31','Q4 2025'],['2026-03-31','Q1 2026'],['2026-06-30','Q2 2026'],
+  ['2026-09-30','Q3 2026']
+];
+const MAX_PER_SLIDE = 21;
+
+async function generatePptx(btn) {
+  if (!window.PptxGenJS) { alert('PptxGenJS library not loaded — check your internet connection.'); return; }
+  const orig = btn.textContent;
+  btn.textContent = 'Building…'; btn.disabled = true;
+
+  try {
+    const pptx = new PptxGenJS();
+    pptx.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 inches
+
+    // helpers
+    const rect = (slide, x, y, w, h, fill, lineColor) => {
+      slide.addShape(pptx.ShapeType.rect, {
+        x, y, w, h,
+        fill: { color: fill },
+        line: lineColor ? { color: lineColor, width: 0.5 } : { type: 'none' }
+      });
+    };
+    const txt = (slide, text, x, y, w, h, opts) =>
+      slide.addText(text, { x, y, w, h, ...opts });
+
+    // ── Cover ─────────────────────────────────────────────────────────────
+    const cover = pptx.addSlide();
+    rect(cover, 0, 0, 13.33, 7.5, '0F0B1E');
+    rect(cover, 0, 0, 13.33, 0.08, '8B5CF6');
+    rect(cover, 0, 7.42, 13.33, 0.08, '3D2E6E');
+    // decorative blob
+    cover.addShape(pptx.ShapeType.ellipse, { x:9.5, y:-0.8, w:5, h:5, fill:{color:'2D1F5E'}, line:{type:'none'} });
+    cover.addShape(pptx.ShapeType.ellipse, { x:-1, y:4.5, w:4, h:4, fill:{color:'201645'}, line:{type:'none'} });
+
+    txt(cover,'Product Planning', 1.2, 1.8, 9, 1.2,
+      { fontSize:40, bold:true, color:'EDE9FE', valign:'middle' });
+    txt(cover,'Feature Release Timeline  ·  Q1 2025 – Q3 2026', 1.2, 3.05, 10, 0.65,
+      { fontSize:18, color:'C084FF', valign:'middle' });
+
+    const total = DATA.length;
+    const released = DATA.filter(f => (f.workflow_stage||'').includes('Released')).length;
+    txt(cover, `${total} Features   ·   ${released} Released   ·   7 Quarters`, 1.2, 3.85, 10, 0.45,
+      { fontSize:13, color:'9D8FC7', valign:'middle' });
+    txt(cover, 'April 2026', 11.1, 7.05, 2, 0.35,
+      { fontSize:11, color:'9D8FC7', align:'right', valign:'middle' });
+
+    // ── Quarter slides ─────────────────────────────────────────────────────
+    const byQ = {};
+    PPTX_QUARTERS.forEach(([d]) => { byQ[d] = []; });
+    DATA.forEach(f => { if (byQ[f.target_release_date]) byQ[f.target_release_date].push(f); });
+
+    for (const [dateKey, label] of PPTX_QUARTERS) {
+      const feats = (byQ[dateKey]||[]).slice().sort((a,b)=>a.feature_title.localeCompare(b.feature_title));
+      if (!feats.length) continue;
+
+      const chunks = [];
+      for (let i = 0; i < feats.length; i += MAX_PER_SLIDE) chunks.push(feats.slice(i, i + MAX_PER_SLIDE));
+
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const chunk = chunks[ci];
+        const slide = pptx.addSlide();
+
+        // backgrounds
+        rect(slide, 0, 0, 13.33, 7.5, '16102E');
+        rect(slide, 0, 0, 13.33, 0.06, '8B5CF6');
+        rect(slide, 0, 0.06, 13.33, 1.0, '1A1236');
+        rect(slide, 0, 7.44, 13.33, 0.06, '3D2E6E');
+
+        const partSuffix = chunks.length > 1 ? `  (${ci+1}/${chunks.length})` : '';
+        txt(slide, label + partSuffix, 0.45, 0.18, 8, 0.55,
+          { fontSize:26, bold:true, color:'EDE9FE', valign:'middle' });
+        txt(slide, `${chunk.length} features`, 11.1, 0.26, 2, 0.4,
+          { fontSize:12, color:'9D8FC7', align:'right', valign:'middle' });
+        txt(slide, dateKey, 11.1, 7.08, 2, 0.35,
+          { fontSize:10, color:'9D8FC7', align:'right', valign:'middle' });
+
+        // Pills — 3 columns
+        const COLS = 3, ML = 0.45, MT = 1.28;
+        const COL_GAP = 0.22, PILL_H = 0.38, PILL_GAP = 0.10, ACCENT_W = 0.055;
+        const COL_W = (13.33 - ML * 2 - COL_GAP * (COLS - 1)) / COLS;
+        const rowsPerCol = Math.ceil(chunk.length / COLS);
+
+        chunk.forEach((f, idx) => {
+          const col = Math.floor(idx / rowsPerCol);
+          const row = idx % rowsPerCol;
+          const x = ML + col * (COL_W + COL_GAP);
+          const y = MT + row * (PILL_H + PILL_GAP);
+          const sc = PPTX_STAGE_COLOR[f.workflow_stage] || '3D2E6E';
+
+          rect(slide, x, y, COL_W, PILL_H, '221A42', '3D2E6E');
+          rect(slide, x, y, ACCENT_W, PILL_H, sc);
+
+          // truncate title to avoid overflow
+          const title = (f.feature_title||'').length > 42
+            ? f.feature_title.substring(0,40)+'…'
+            : f.feature_title;
+          txt(slide, title,
+            x + ACCENT_W + 0.08, y + 0.04,
+            COL_W - ACCENT_W - 0.12, PILL_H - 0.08,
+            { fontSize:9.5, color:'EDE9FE', valign:'middle' });
+        });
+      }
+    }
+
+    await pptx.writeFile({ fileName: 'product_planning_timeline.pptx' });
+  } finally {
+    btn.textContent = orig; btn.disabled = false;
+  }
 }
 
 // Init: start on Data view
