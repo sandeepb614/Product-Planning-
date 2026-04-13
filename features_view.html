@@ -141,7 +141,6 @@
 .tl-pill.stage-exception-pending-pm{border-left-color:#fbbf24}
 .tl-empty{color:var(--text-muted);font-size:13px;padding:20px;text-align:center}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 </head>
 <body>
 
@@ -727,129 +726,189 @@ function renderTimeline() {
     `</div>`;
 }
 
-// ── PowerPoint slide export ───────────────────────────────────────────────────
-const PPTX_STAGE_COLOR = {
-  'Released':               '34D399',
-  'Released with Exception':'34D399',
-  'Blocked':                'F87171',
-  'QA Testing':             '22D3EE',
-  'HW Input':               'FB923C',
-  'Dev Scheduling':         'A78BFA',
-  'Test Planning':          '86EFAC',
-  'Exception Pending PM':   'FBBF24',
-  'Draft':                  '554C7E',
-  'PgM Review':             '554C7E',
-  'On Hold':                '554C7E',
-  'Cancelled':              '4B446A',
-};
+// ── Pure-JS PPTX generator (no external library) ────────────────────────────
 
+// CRC32 table
+const _CRC = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) c = c & 1 ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c;
+  }
+  return t;
+})();
+function _crc32(u8) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = _CRC[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+const _ENC = new TextEncoder();
+const _b   = s => typeof s === 'string' ? _ENC.encode(s) : s;
+const _u16 = n => [n & 0xFF, (n >> 8) & 0xFF];
+const _u32 = n => { n >>>= 0; return [n & 0xFF, (n >> 8) & 0xFF, (n >> 16) & 0xFF, (n >> 24) & 0xFF]; };
+const _arr = a => new Uint8Array(a);
+
+function _buildZip(files) {
+  const entries = files.map(f => {
+    const nb = _b(f.name), data = _b(f.data);
+    return { nb, data, crc: _crc32(data) };
+  });
+  const lfhs = [], offsets = [];
+  let pos = 0;
+  for (const e of entries) {
+    offsets.push(pos);
+    const h = _arr([0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+      ..._u32(e.crc),..._u32(e.data.length),..._u32(e.data.length),
+      ..._u16(e.nb.length),0x00,0x00,...e.nb]);
+    lfhs.push(h, e.data);
+    pos += h.length + e.data.length;
+  }
+  const cds = [], cdStart = pos;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const c = _arr([0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+      ..._u32(e.crc),..._u32(e.data.length),..._u32(e.data.length),
+      ..._u16(e.nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+      ..._u32(offsets[i]),...e.nb]);
+    cds.push(c); pos += c.length;
+  }
+  const cdSize = pos - cdStart;
+  const eocd = _arr([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,
+    ..._u16(entries.length),..._u16(entries.length),
+    ..._u32(cdSize),..._u32(cdStart),0x00,0x00]);
+  const all = [...lfhs, ...cds, eocd];
+  const out = new Uint8Array(all.reduce((s,p)=>s+p.length,0));
+  let off = 0; for (const p of all) { out.set(p, off); off += p.length; }
+  return out;
+}
+
+// PPTX XML helpers
+const _emu = n => Math.round(n * 914400);
+const _xe  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function _sp(id, x, y, w, h, fill, line) {
+  const fxml = fill ? `<a:solidFill><a:srgbClr val="${fill}"/></a:solidFill>` : `<a:noFill/>`;
+  const lxml = line ? `<a:ln w="6350"><a:solidFill><a:srgbClr val="${line}"/></a:solidFill></a:ln>` : `<a:ln><a:noFill/></a:ln>`;
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="s${id}"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${_emu(x)}" y="${_emu(y)}"/><a:ext cx="${_emu(w)}" cy="${_emu(h)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${fxml}${lxml}</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>`;
+}
+
+function _tx(id, x, y, w, h, text, sz, color, bold, align) {
+  const algn = align === 'r' ? 'r' : align === 'ctr' ? 'ctr' : 'l';
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="t${id}"/><p:cNvSpPr txBox="1"><a:spLocks noGrp="1"/></p:cNvSpPr><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${_emu(x)}" y="${_emu(y)}"/><a:ext cx="${_emu(w)}" cy="${_emu(h)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" rtlCol="0" anchor="ctr"><a:noAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr algn="${algn}"/><a:r><a:rPr lang="en-US" sz="${Math.round(sz*100)}" b="${bold?1:0}" dirty="0"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="+mj-lt"/></a:rPr><a:t>${_xe(text)}</a:t></a:r></a:p></p:txBody></p:sp>`;
+}
+
+function _slideXml(bgColor, shapes) {
+  const bg = bgColor ? `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${bgColor}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>` : '';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld>${bg}<p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>${shapes.join('')}</p:spTree></p:cSld><p:clrMapOvr><a:masterClr/></p:clrMapOvr></p:sld>`;
+}
+
+// Stage colours & quarters (shared with timeline view)
+const PPTX_STAGE_COLOR = {
+  'Released':'34D399','Released with Exception':'34D399','Blocked':'F87171',
+  'QA Testing':'22D3EE','HW Input':'FB923C','Dev Scheduling':'A78BFA',
+  'Test Planning':'86EFAC','Exception Pending PM':'FBBF24',
+  'Draft':'554C7E','PgM Review':'554C7E','On Hold':'554C7E','Cancelled':'4B446A',
+};
 const PPTX_QUARTERS = [
   ['2025-03-31','Q1 2025'],['2025-06-30','Q2 2025'],['2025-09-30','Q3 2025'],
-  ['2025-12-31','Q4 2025'],['2026-03-31','Q1 2026'],['2026-06-30','Q2 2026'],
-  ['2026-09-30','Q3 2026']
+  ['2025-12-31','Q4 2025'],['2026-03-31','Q1 2026'],['2026-06-30','Q2 2026'],['2026-09-30','Q3 2026']
 ];
-const MAX_PER_SLIDE = 21;
 
 async function generatePptx(btn) {
-  if (!window.PptxGenJS) { alert('PptxGenJS library not loaded — check your internet connection.'); return; }
   const orig = btn.textContent;
-  btn.textContent = 'Building…'; btn.disabled = true;
-
+  btn.textContent = 'Building\u2026'; btn.disabled = true;
   try {
-    const pptx = new PptxGenJS();
-    pptx.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 inches
+    const slideXmls = [];
 
-    // helpers
-    const rect = (slide, x, y, w, h, fill, lineColor) => {
-      slide.addShape(pptx.ShapeType.rect, {
-        x, y, w, h,
-        fill: { color: fill },
-        line: lineColor ? { color: lineColor, width: 0.5 } : { type: 'none' }
-      });
-    };
-    const txt = (slide, text, x, y, w, h, opts) =>
-      slide.addText(text, { x, y, w, h, ...opts });
+    // ── Cover slide ──────────────────────────────────────────────────────────
+    (() => {
+      const S = []; let id = 2;
+      S.push(_sp(id++,9.5,-0.8,5,5,'2D1F5E',null));
+      S.push(_sp(id++,-1,4.5,4,4,'201645',null));
+      S.push(_sp(id++,0,0,13.33,0.08,'8B5CF6',null));
+      S.push(_sp(id++,0,7.42,13.33,0.08,'3D2E6E',null));
+      S.push(_tx(id++,1.2,1.8,9,1.2,'Product Planning',40,'EDE9FE',true,'l'));
+      S.push(_tx(id++,1.2,3.05,10,0.65,'Feature Release Timeline  \u00B7  Q1 2025 \u2013 Q3 2026',18,'C084FF',false,'l'));
+      const total = DATA.length;
+      const rel   = DATA.filter(f=>(f.workflow_stage||'').includes('Released')).length;
+      S.push(_tx(id++,1.2,3.85,10,0.45,`${total} Features   \u00B7   ${rel} Released   \u00B7   7 Quarters`,13,'9D8FC7',false,'l'));
+      S.push(_tx(id++,11.1,7.05,2,0.35,'April 2026',11,'9D8FC7',false,'r'));
+      slideXmls.push(_slideXml('0F0B1E', S));
+    })();
 
-    // ── Cover ─────────────────────────────────────────────────────────────
-    const cover = pptx.addSlide();
-    rect(cover, 0, 0, 13.33, 7.5, '0F0B1E');
-    rect(cover, 0, 0, 13.33, 0.08, '8B5CF6');
-    rect(cover, 0, 7.42, 13.33, 0.08, '3D2E6E');
-    // decorative blob
-    cover.addShape(pptx.ShapeType.ellipse, { x:9.5, y:-0.8, w:5, h:5, fill:{color:'2D1F5E'}, line:{type:'none'} });
-    cover.addShape(pptx.ShapeType.ellipse, { x:-1, y:4.5, w:4, h:4, fill:{color:'201645'}, line:{type:'none'} });
-
-    txt(cover,'Product Planning', 1.2, 1.8, 9, 1.2,
-      { fontSize:40, bold:true, color:'EDE9FE', valign:'middle' });
-    txt(cover,'Feature Release Timeline  ·  Q1 2025 – Q3 2026', 1.2, 3.05, 10, 0.65,
-      { fontSize:18, color:'C084FF', valign:'middle' });
-
-    const total = DATA.length;
-    const released = DATA.filter(f => (f.workflow_stage||'').includes('Released')).length;
-    txt(cover, `${total} Features   ·   ${released} Released   ·   7 Quarters`, 1.2, 3.85, 10, 0.45,
-      { fontSize:13, color:'9D8FC7', valign:'middle' });
-    txt(cover, 'April 2026', 11.1, 7.05, 2, 0.35,
-      { fontSize:11, color:'9D8FC7', align:'right', valign:'middle' });
-
-    // ── Quarter slides ─────────────────────────────────────────────────────
+    // ── Quarter slides ───────────────────────────────────────────────────────
     const byQ = {};
-    PPTX_QUARTERS.forEach(([d]) => { byQ[d] = []; });
-    DATA.forEach(f => { if (byQ[f.target_release_date]) byQ[f.target_release_date].push(f); });
+    PPTX_QUARTERS.forEach(([d])=>{ byQ[d]=[]; });
+    DATA.forEach(f=>{ if(byQ[f.target_release_date]) byQ[f.target_release_date].push(f); });
 
     for (const [dateKey, label] of PPTX_QUARTERS) {
       const feats = (byQ[dateKey]||[]).slice().sort((a,b)=>a.feature_title.localeCompare(b.feature_title));
       if (!feats.length) continue;
-
       const chunks = [];
-      for (let i = 0; i < feats.length; i += MAX_PER_SLIDE) chunks.push(feats.slice(i, i + MAX_PER_SLIDE));
+      for (let i=0; i<feats.length; i+=21) chunks.push(feats.slice(i,i+21));
 
-      for (let ci = 0; ci < chunks.length; ci++) {
+      for (let ci=0; ci<chunks.length; ci++) {
         const chunk = chunks[ci];
-        const slide = pptx.addSlide();
+        const S = []; let id = 2;
+        const suffix = chunks.length>1 ? `  (${ci+1}/${chunks.length})` : '';
+        S.push(_sp(id++,0,0,13.33,0.06,'8B5CF6',null));
+        S.push(_sp(id++,0,0.06,13.33,1.0,'1A1236',null));
+        S.push(_sp(id++,0,7.44,13.33,0.06,'3D2E6E',null));
+        S.push(_tx(id++,0.45,0.18,8,0.55,label+suffix,26,'EDE9FE',true,'l'));
+        S.push(_tx(id++,11.1,0.26,2,0.4,`${chunk.length} features`,12,'9D8FC7',false,'r'));
+        S.push(_tx(id++,11.1,7.08,2,0.35,dateKey,10,'9D8FC7',false,'r'));
 
-        // backgrounds
-        rect(slide, 0, 0, 13.33, 7.5, '16102E');
-        rect(slide, 0, 0, 13.33, 0.06, '8B5CF6');
-        rect(slide, 0, 0.06, 13.33, 1.0, '1A1236');
-        rect(slide, 0, 7.44, 13.33, 0.06, '3D2E6E');
-
-        const partSuffix = chunks.length > 1 ? `  (${ci+1}/${chunks.length})` : '';
-        txt(slide, label + partSuffix, 0.45, 0.18, 8, 0.55,
-          { fontSize:26, bold:true, color:'EDE9FE', valign:'middle' });
-        txt(slide, `${chunk.length} features`, 11.1, 0.26, 2, 0.4,
-          { fontSize:12, color:'9D8FC7', align:'right', valign:'middle' });
-        txt(slide, dateKey, 11.1, 7.08, 2, 0.35,
-          { fontSize:10, color:'9D8FC7', align:'right', valign:'middle' });
-
-        // Pills — 3 columns
-        const COLS = 3, ML = 0.45, MT = 1.28;
-        const COL_GAP = 0.22, PILL_H = 0.38, PILL_GAP = 0.10, ACCENT_W = 0.055;
-        const COL_W = (13.33 - ML * 2 - COL_GAP * (COLS - 1)) / COLS;
-        const rowsPerCol = Math.ceil(chunk.length / COLS);
-
-        chunk.forEach((f, idx) => {
-          const col = Math.floor(idx / rowsPerCol);
-          const row = idx % rowsPerCol;
-          const x = ML + col * (COL_W + COL_GAP);
-          const y = MT + row * (PILL_H + PILL_GAP);
-          const sc = PPTX_STAGE_COLOR[f.workflow_stage] || '3D2E6E';
-
-          rect(slide, x, y, COL_W, PILL_H, '221A42', '3D2E6E');
-          rect(slide, x, y, ACCENT_W, PILL_H, sc);
-
-          // truncate title to avoid overflow
-          const title = (f.feature_title||'').length > 42
-            ? f.feature_title.substring(0,40)+'…'
-            : f.feature_title;
-          txt(slide, title,
-            x + ACCENT_W + 0.08, y + 0.04,
-            COL_W - ACCENT_W - 0.12, PILL_H - 0.08,
-            { fontSize:9.5, color:'EDE9FE', valign:'middle' });
+        const COLS=3, ML=0.45, MT=1.28, COL_GAP=0.22, PILL_H=0.38, PILL_GAP=0.10, AW=0.055;
+        const COL_W=(13.33-ML*2-COL_GAP*(COLS-1))/COLS;
+        const rpc=Math.ceil(chunk.length/COLS);
+        chunk.forEach((f,idx)=>{
+          const col=Math.floor(idx/rpc), row=idx%rpc;
+          const x=ML+col*(COL_W+COL_GAP), y=MT+row*(PILL_H+PILL_GAP);
+          const sc=PPTX_STAGE_COLOR[f.workflow_stage]||'3D2E6E';
+          S.push(_sp(id++,x,y,COL_W,PILL_H,'221A42','3D2E6E'));
+          S.push(_sp(id++,x,y,AW,PILL_H,sc,null));
+          const title=(f.feature_title||'').length>42?f.feature_title.substring(0,40)+'\u2026':f.feature_title;
+          S.push(_tx(id++,x+AW+0.08,y+0.04,COL_W-AW-0.12,PILL_H-0.08,title,9.5,'EDE9FE',false,'l'));
         });
+        slideXmls.push(_slideXml('16102E', S));
       }
     }
 
-    await pptx.writeFile({ fileName: 'product_planning_timeline.pptx' });
+    // ── Assemble PPTX files ──────────────────────────────────────────────────
+    const sldIds  = slideXmls.map((_,i)=>`<p:sldId id="${256+i}" r:id="rId${i+2}"/>`).join('');
+    const presRel = [`<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>`,
+      ...slideXmls.map((_,i)=>`<Relationship Id="rId${i+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i+1}.xml"/>`)
+    ].join('');
+    const ctOver  = slideXmls.map((_,i)=>`<Override PartName="/ppt/slides/slide${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('');
+    const slideRl = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>`;
+
+    const files = [
+      {name:'[Content_Types].xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>${ctOver}</Types>`},
+      {name:'_rels/.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>`},
+      {name:'ppt/presentation.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" saveSubsetFonts="1"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>${sldIds}</p:sldIdLst><p:sldSz cx="12192000" cy="6858000" type="screen16x9"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`},
+      {name:'ppt/_rels/presentation.xml.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${presRel}</Relationships>`},
+      {name:'ppt/theme/theme1.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme"><a:themeElements><a:clrScheme name="Office"><a:dk1><a:sysClr lastClr="000000" val="windowText"/></a:dk1><a:lt1><a:sysClr lastClr="FFFFFF" val="window"/></a:lt1><a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2><a:accent3><a:srgbClr val="A9D18E"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fontScheme name="Office"><a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Office"><a:fillStyleLst><a:noFill/><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:noFill/><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`},
+      {name:'ppt/slideMasters/slideMaster1.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle><a:lvl1pPr><a:defRPr lang="en-US"/></a:lvl1pPr></p:titleStyle><p:bodyStyle><a:lvl1pPr><a:defRPr lang="en-US"/></a:lvl1pPr></p:bodyStyle><p:otherStyle><a:lvl1pPr><a:defRPr lang="en-US"/></a:lvl1pPr></p:otherStyle></p:txStyles></p:sldMaster>`},
+      {name:'ppt/slideMasters/_rels/slideMaster1.xml.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>`},
+      {name:'ppt/slideLayouts/slideLayout1.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank" preserve="1"><p:cSld name="Blank"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld><p:clrMapOvr><a:masterClr/></p:clrMapOvr></p:sldLayout>`},
+      {name:'ppt/slideLayouts/_rels/slideLayout1.xml.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>`},
+      ...slideXmls.map((xml,i)=>({name:`ppt/slides/slide${i+1}.xml`, data:xml})),
+      ...slideXmls.map((_,i)=>({name:`ppt/slides/_rels/slide${i+1}.xml.rels`, data:slideRl})),
+    ];
+
+    const zip  = _buildZip(files);
+    const blob = new Blob([zip], {type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'product_planning_timeline.pptx';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+
+  } catch(err) {
+    alert('Error generating slides: ' + err.message);
+    console.error(err);
   } finally {
     btn.textContent = orig; btn.disabled = false;
   }
