@@ -1,5 +1,5 @@
 {
-  "total_people": 24,
+  "total_people": 27,
   "roles": [
     "Product Manager",
     "Program Manager",
@@ -7,7 +7,8 @@
     "Developer",
     "Hardware Engineer",
     "Test Engineer",
-    "Executive"
+    "Executive",
+    "Customer Engineer"
   ],
   "people": [
     {
@@ -177,6 +178,27 @@
       "role": "Executive",
       "email": "marcus.reid@company.com",
       "team": "Leadership"
+    },
+    {
+      "id": "P025",
+      "name": "Ryan Foster",
+      "role": "Customer Engineer",
+      "email": "ryan.foster@company.com",
+      "team": "Customer Engineering"
+    },
+    {
+      "id": "P026",
+      "name": "Sophia Nguyen",
+      "role": "Customer Engineer",
+      "email": "sophia.nguyen@company.com",
+      "team": "Customer Engineering"
+    },
+    {
+      "id": "P027",
+      "name": "Derek Okonkwo",
+      "role": "Customer Engineer",
+      "email": "derek.okonkwo@company.com",
+      "team": "Customer Engineering"
     }
   ]
 }
