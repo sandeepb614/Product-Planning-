@@ -212,6 +212,43 @@
 #userChip:hover{border-color:var(--accent)}
 .user-avatar{width:24px;height:24px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
 .user-role-tag{font-size:10px;color:var(--text-muted)}
+
+/* ── Action Panel / Split Layout ──────────────────────────────── */
+.wf-split{display:flex;gap:0;align-items:flex-start}
+.wf-list{flex:1;min-width:0}
+.wf-split.has-panel .wf-list{max-width:58%}
+.wf-panel{width:400px;min-width:360px;max-width:420px;position:sticky;top:72px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-left:16px;display:flex;flex-direction:column;overflow:hidden;max-height:calc(100vh - 90px);overflow-y:auto;flex-shrink:0}
+.wf-panel-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.wf-panel-title{font-size:13px;font-weight:600;color:var(--text);padding:10px 16px 4px;line-height:1.4}
+.wf-panel-meta{display:flex;gap:12px;padding:2px 16px 12px;font-size:11px;color:var(--text-muted);flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.wf-close-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:3px 7px;border-radius:4px;flex-shrink:0;line-height:1}
+.wf-close-btn:hover{background:var(--surface2);color:var(--text)}
+.wf-action-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+.wf-action-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.wf-action-label{font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase}
+.wf-role-badge{font-size:10px;background:rgba(108,99,255,.15);color:var(--accent);border-radius:20px;padding:2px 9px;white-space:nowrap}
+.wf-action-desc{font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.5}
+.wf-no-action{font-size:12px;color:var(--text-muted);padding:4px 0}
+.wf-form-group{margin-bottom:10px}
+.wf-form-group label{display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px}
+.wf-form-group input[type=date],.wf-form-group select,.wf-form-group textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-size:12px;outline:none;box-sizing:border-box;resize:vertical}
+.wf-form-group input[type=date]:focus,.wf-form-group select:focus,.wf-form-group textarea:focus{border-color:var(--accent)}
+.wf-form-group select option{background:#222636}
+.wf-btn-row{display:flex;gap:8px;margin-top:12px}
+.wf-action-btn{flex:1;background:var(--accent);border:none;border-radius:7px;color:#fff;padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.wf-action-btn:hover{opacity:.85}
+.wf-escalate-btn{flex:1;background:transparent;border:1px solid #f87171;border-radius:7px;color:#f87171;padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.wf-escalate-btn:hover{background:rgba(248,113,113,.1)}
+.wf-block-btn{background:transparent;border:1px solid #fb923c;border-radius:7px;color:#fb923c;padding:7px 14px;font-size:12px;cursor:pointer;transition:all .2s}
+.wf-block-btn:hover{background:rgba(251,146,60,.1)}
+.wf-card.wf-selected{border-color:var(--accent) !important;box-shadow:0 0 0 1px var(--accent)}
+.wf-audit-section{padding:14px 16px}
+.wf-audit-title{font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px}
+.wf-audit-entry{padding:8px 0;border-bottom:1px solid var(--border)}
+.wf-audit-entry:last-child{border-bottom:none}
+.wf-audit-meta{font-size:11px;color:var(--text-muted);margin-bottom:2px}
+.wf-audit-role{opacity:.65}
+.wf-audit-action{font-size:12px;color:var(--text);line-height:1.4}
 </style>
 </head>
 <body>
@@ -392,7 +429,10 @@
     </select>
     <span id="wfCount" class="wf-count"></span>
   </div>
-  <div id="wfContent"></div>
+  <div class="wf-split" id="wfSplit">
+    <div id="wfContent" class="wf-list"></div>
+    <div id="wfActionPanel" class="wf-panel" style="display:none"></div>
+  </div>
 </div>
 </div>
 
@@ -1215,7 +1255,7 @@ function buildFeatureCard(f) {
     ? `<span style="font-size:11px;color:#fdba74;margin-left:auto"> HW needed by ${esc(f.hw_dependency_date)}</span>`
     : '';
 
-  return `<div class="wf-card ${cardClass}">
+  return `<div class="wf-card ${cardClass}" id="wf-card-${f.feature_number}" onclick="selectFeature('${f.feature_number}')" style="cursor:pointer">
     <div class="wf-card-top">
       <span class="wf-feat-num">${esc(f.feature_number)}</span>
       <span class="wf-feat-title" title="${esc(f.feature_title)}">${esc(f.feature_title)}</span>
@@ -1228,7 +1268,148 @@ function buildFeatureCard(f) {
   </div>`;
 }
 
+// ── ACTION PANEL ──────────────────────────────────────────────────────────────
+let selectedFeatId = null;
 
+function selectFeature(featId) {
+  selectedFeatId = featId;
+  document.querySelectorAll('.wf-card').forEach(c => c.classList.remove('wf-selected'));
+  const card = document.getElementById('wf-card-' + featId);
+  if (card) { card.classList.add('wf-selected'); card.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+  document.getElementById('wfSplit').classList.add('has-panel');
+  const feat = DATA.find(f => f.feature_number === featId);
+  if (!feat) return;
+  const panel = document.getElementById('wfActionPanel');
+  panel.style.display = 'flex';
+  panel.innerHTML = buildActionPanel(feat);
+}
+
+function closeActionPanel() {
+  selectedFeatId = null;
+  document.querySelectorAll('.wf-card').forEach(c => c.classList.remove('wf-selected'));
+  document.getElementById('wfSplit').classList.remove('has-panel');
+  document.getElementById('wfActionPanel').style.display = 'none';
+}
+
+const PRIORITY_COLOR = { Critical:'#f87171', High:'#fb923c', Medium:'#86efac', Low:'#7dd3fc' };
+
+function buildActionPanel(feat) {
+  const role  = currentUser ? currentUser.role : '';
+  const stage = feat.workflow_stage || 'Draft';
+  const badge = WF_STAGE_BADGE[stage] || {bg:'rgba(62,68,96,.5)', color:'#8892a4', text:stage};
+  const qLabel = WF_QUARTERS.find(q => q.date === feat.target_release_date)?.label || feat.target_release_date;
+  const actionHtml = buildRoleActions(feat, role, stage);
+  return `
+    <div class="wf-panel-header">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden">
+        <span class="wf-feat-num" style="flex-shrink:0">${esc(feat.feature_number)}</span>
+        <span class="wf-stage-badge" style="background:${badge.bg};color:${badge.color};border-color:${badge.color}30;flex-shrink:0">${badge.text}</span>
+      </div>
+      <button class="wf-close-btn" onclick="closeActionPanel()" title="Close">✕</button>
+    </div>
+    <div class="wf-panel-title">${esc(feat.feature_title)}</div>
+    <div class="wf-panel-meta">
+      <span>📅 ${esc(qLabel)}</span>
+      <span style="color:${PRIORITY_COLOR[feat.priority]||'var(--text-muted)'}">${esc(feat.priority)}</span>
+      <span>${esc(feat.product_area)}</span>
+    </div>
+    <div class="wf-action-section">
+      <div class="wf-action-header">
+        <span class="wf-action-label">Your Action</span>
+        <span class="wf-role-badge">${esc(role)}</span>
+      </div>
+      ${actionHtml || '<div class="wf-no-action">No actions available for your role at this stage.</div>'}
+    </div>
+    ${renderAuditLog(feat)}`;
+}
+
+function buildRoleActions(feat, role, stage) {
+  const id = feat.feature_number;
+  const rel = feat.target_release_date;
+  const hwEngineers = PEOPLE.filter(p => p.role === 'Hardware Engineer');
+
+  if (role === 'Program Manager' && stage === 'Draft') {
+    return `<p class="wf-action-desc">Review this feature request and approve it for developer commitment.</p>
+      <div class="wf-form-group"><label>Decision note (optional)</label><textarea rows="2" placeholder="Any conditions or context…"></textarea></div>
+      <div class="wf-btn-row"><button class="wf-action-btn">✓ Approve</button><button class="wf-escalate-btn">✕ Reject</button></div>`;
+  }
+
+  if (role === 'Developer' && stage === 'PgM Review') {
+    return `<p class="wf-action-desc">Commit to delivering this feature by the target release date.</p>
+      <div class="wf-form-group"><label>Your code-complete milestone date</label><input type="date" max="${rel}"></div>
+      <div class="wf-form-group"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" style="accent-color:var(--accent)"> Confirm delivery by <strong style="margin-left:3px">${esc(rel)}</strong></label></div>
+      <div class="wf-form-group"><label>Add HW dependency (optional)</label>
+        <select id="ap-hw-${id}" onchange="document.getElementById('ap-hwrow-${id}').style.display=this.value?'block':'none'">
+          <option value="">None</option>${hwEngineers.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+        </select></div>
+      <div id="ap-hwrow-${id}" class="wf-form-group" style="display:none"><label>HW needed by</label><input type="date" max="${rel}"></div>
+      <div class="wf-btn-row"><button class="wf-action-btn">✓ Commit</button><button class="wf-escalate-btn">↑ Escalate to EL</button></div>`;
+  }
+
+  if (role === 'Developer' && stage === 'Dev Scheduling') {
+    return `<p class="wf-action-desc">Signal that development is complete and hand off to testing.</p>
+      <div class="wf-form-group"><label>Notes for test team (optional)</label><textarea rows="2" placeholder="Known issues, edge cases, test hints…"></textarea></div>
+      <div class="wf-btn-row"><button class="wf-action-btn">✓ Mark Dev Complete</button><button class="wf-escalate-btn">↑ Escalate to EL</button></div>
+      <button class="wf-block-btn" style="margin-top:8px">🚫 Mark Blocked</button>`;
+  }
+
+  if (role === 'Hardware Engineer' && stage === 'HW Input') {
+    return `<p class="wf-action-desc">Commit to a hardware delivery date for this feature.</p>
+      <div class="wf-form-group"><label>HW delivery date</label><input type="date" value="${feat.hw_dependency_date||''}" max="${rel}"></div>
+      <div class="wf-form-group"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" style="accent-color:var(--accent)"> I confirm HW will be ready by this date</label></div>
+      <div class="wf-btn-row"><button class="wf-action-btn">✓ Commit HW Date</button><button class="wf-escalate-btn">↑ Escalate to EL</button></div>`;
+  }
+
+  if (role === 'Test Engineer' && stage === 'Test Planning') {
+    return `<p class="wf-action-desc">Submit your test plan to begin the QA execution phase.</p>
+      <div class="wf-form-group"><label>Test plan summary</label><textarea rows="3" placeholder="Describe test scope, cases, and acceptance criteria…"></textarea></div>
+      <div class="wf-form-group"><label>Execution target date</label><input type="date" max="${rel}"></div>
+      <div class="wf-btn-row"><button class="wf-action-btn">✓ Submit Test Plan</button><button class="wf-escalate-btn">↑ Escalate to EL</button></div>`;
+  }
+
+  if (role === 'Test Engineer' && stage === 'QA Testing') {
+    return `<p class="wf-action-desc">Record the outcome of test execution for this feature.</p>
+      <div class="wf-form-group"><label>Testing notes</label><textarea rows="2" placeholder="Issues found, pass details…"></textarea></div>
+      <div class="wf-btn-row"><button class="wf-action-btn">✓ Tests Passed</button><button class="wf-escalate-btn">✕ Tests Failed</button></div>
+      <button class="wf-block-btn" style="margin-top:8px">↑ Escalate to EL</button>`;
+  }
+
+  if (role === 'Product Manager' && stage === 'Exception Pending PM') {
+    return `<p class="wf-action-desc">Testing did not complete by the release date. Decide whether to release with exception.</p>
+      <div class="wf-form-group"><label>Decision note</label><textarea rows="2" placeholder="Justification or conditions…"></textarea></div>
+      <div class="wf-btn-row"><button class="wf-action-btn">✓ Approve Exception</button><button class="wf-escalate-btn">✕ Back to QA</button></div>`;
+  }
+
+  if (role === 'Engineering Lead') {
+    const blocked = stage === 'Blocked';
+    return `<p class="wf-action-desc">${blocked ? 'Resolve the active blocker and return this feature to its previous state.' : 'Engineering Lead oversight — review, approve, or escalate.'}</p>
+      <div class="wf-form-group"><label>${blocked ? 'Resolution note' : 'Action note'}</label><textarea rows="2" placeholder="${blocked ? 'How was the blocker resolved?' : 'Decision or guidance…'}"></textarea></div>
+      <div class="wf-btn-row"><button class="wf-action-btn">${blocked ? '✓ Resolve Blocker' : '✓ Approve / Clear'}</button>${!blocked?'<button class="wf-block-btn" style="flex:1">🚫 Mark Blocked</button>':''}</div>`;
+  }
+
+  if (role === 'Executive') {
+    const qL = WF_QUARTERS.find(q => q.date === feat.target_release_date)?.label || feat.target_release_date;
+    return `<p class="wf-action-desc">Executive oversight for the <strong>${esc(qL)}</strong> release.</p>
+      <div class="wf-form-group"><label>Veto reason</label><textarea rows="2" placeholder="State the reason for stopping this release…"></textarea></div>
+      <div class="wf-btn-row"><button class="wf-escalate-btn" style="flex:1">⛔ Veto Release</button></div>`;
+  }
+
+  return null;
+}
+
+function renderAuditLog(feat) {
+  const log = (feat.audit_log || []).slice().reverse();
+  const entries = log.length
+    ? log.slice(0,8).map(e => `<div class="wf-audit-entry">
+        <div class="wf-audit-meta">${esc(e.date)} · <strong>${esc(e.user)}</strong> <span class="wf-audit-role">${esc(e.role)}</span></div>
+        <div class="wf-audit-action">${esc(e.action)}</div>
+      </div>`).join('') + (log.length > 8 ? `<div style="font-size:11px;color:var(--text-muted);padding:4px 0">+${log.length-8} more</div>` : '')
+    : '<div style="color:var(--text-muted);font-size:12px;padding:4px 0">No history yet.</div>';
+  return `<div class="wf-audit-section">
+    <div class="wf-audit-title">History${log.length ? ' ('+log.length+')' : ''}</div>
+    ${entries}
+  </div>`;
+}
 
 // ── PEOPLE & AUTH ─────────────────────────────────────────────────────────────
 const PEOPLE = [{"id":"P001","name":"Sarah Johnson","role":"Product Manager","email":"sarah.johnson@company.com","team":"Product"},{"id":"P002","name":"Daniel Park","role":"Product Manager","email":"daniel.park@company.com","team":"Product"},{"id":"P003","name":"Mia Torres","role":"Product Manager","email":"mia.torres@company.com","team":"Product"},{"id":"P004","name":"James Whitfield","role":"Program Manager","email":"james.whitfield@company.com","team":"PMO"},{"id":"P005","name":"Linda Nguyen","role":"Program Manager","email":"linda.nguyen@company.com","team":"PMO"},{"id":"P006","name":"Alice Chen","role":"Engineering Lead","email":"alice.chen@company.com","team":"Engineering"},{"id":"P007","name":"Bob Martinez","role":"Engineering Lead","email":"bob.martinez@company.com","team":"Engineering"},{"id":"P008","name":"Carol White","role":"Developer","email":"carol.white@company.com","team":"Backend"},{"id":"P009","name":"David Kim","role":"Developer","email":"david.kim@company.com","team":"Frontend"},{"id":"P010","name":"Emma Singh","role":"Developer","email":"emma.singh@company.com","team":"Mobile"},{"id":"P011","name":"Frank Liu","role":"Developer","email":"frank.liu@company.com","team":"Backend"},{"id":"P012","name":"Grace Patel","role":"Developer","email":"grace.patel@company.com","team":"Full-Stack"},{"id":"P013","name":"Henry Brown","role":"Developer","email":"henry.brown@company.com","team":"Frontend"},{"id":"P014","name":"Iris Tanaka","role":"Developer","email":"iris.tanaka@company.com","team":"Backend"},{"id":"P015","name":"Jake Wilson","role":"Developer","email":"jake.wilson@company.com","team":"DevOps"},{"id":"P016","name":"Karen Scott","role":"Hardware Engineer","email":"karen.scott@company.com","team":"Hardware"},{"id":"P017","name":"Leo Fernandez","role":"Hardware Engineer","email":"leo.fernandez@company.com","team":"Hardware"},{"id":"P018","name":"Maya Robinson","role":"Hardware Engineer","email":"maya.robinson@company.com","team":"Hardware"},{"id":"P019","name":"Nathan Clark","role":"Test Engineer","email":"nathan.clark@company.com","team":"QA"},{"id":"P020","name":"Olivia Adams","role":"Test Engineer","email":"olivia.adams@company.com","team":"QA"},{"id":"P021","name":"Peter Zhang","role":"Test Engineer","email":"peter.zhang@company.com","team":"QA"},{"id":"P022","name":"Quinn Murphy","role":"Test Engineer","email":"quinn.murphy@company.com","team":"QA"},{"id":"P023","name":"Victoria Chen","role":"Executive","email":"victoria.chen@company.com","team":"Leadership"},{"id":"P024","name":"Marcus Reid","role":"Executive","email":"marcus.reid@company.com","team":"Leadership"},{"id":"P025","name":"Ryan Foster","role":"Customer Engineer","email":"ryan.foster@company.com","team":"Customer Engineering"},{"id":"P026","name":"Sophia Nguyen","role":"Customer Engineer","email":"sophia.nguyen@company.com","team":"Customer Engineering"},{"id":"P027","name":"Derek Okonkwo","role":"Customer Engineer","email":"derek.okonkwo@company.com","team":"Customer Engineering"}];
