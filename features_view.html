@@ -189,13 +189,53 @@
 .wf-connector.active{background:linear-gradient(90deg,#34d399,var(--border))}
 .wf-blocker-note{margin-top:8px;padding:6px 10px;background:rgba(248,113,113,.08);border-left:3px solid #f87171;border-radius:4px;font-size:11px;color:#f87171}
 .wf-exception-note{margin-top:8px;padding:6px 10px;background:rgba(251,191,36,.08);border-left:3px solid #fbbf24;border-radius:4px;font-size:11px;color:#fbbf24}
+
+/* ── Login Screen ─────────────────────────────────────────────── */
+#loginScreen{position:fixed;inset:0;background:linear-gradient(135deg,#0d0b1a 0%,#12102a 50%,#0a0d1f 100%);display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px 44px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.login-logo{font-size:22px;font-weight:800;background:linear-gradient(135deg,#6c63ff,#00d4aa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+.login-sub{font-size:13px;color:var(--text-muted);margin-bottom:36px}
+.login-label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.login-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:11px 14px;font-size:14px;outline:none;box-sizing:border-box;transition:border-color .2s}
+.login-input:focus{border-color:var(--accent)}
+.login-input.error{border-color:#f87171}
+.login-error{font-size:12px;color:#f87171;margin-top:8px;min-height:18px}
+.login-btn{width:100%;background:var(--accent);border:none;border-radius:8px;color:#fff;padding:12px;font-size:14px;font-weight:600;cursor:pointer;margin-top:20px;transition:opacity .2s}
+.login-btn:hover{opacity:.88}
+.login-btn:disabled{opacity:.45;cursor:not-allowed}
+.login-suggest{margin-top:14px;display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto}
+.login-suggest-item{padding:7px 12px;border-radius:6px;font-size:12px;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;gap:8px;transition:background .15s}
+.login-suggest-item:hover{background:var(--surface2);color:var(--text)}
+.login-suggest-role{font-size:10px;opacity:.6;margin-left:auto}
+/* User chip in header */
+#userChip{display:none;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px 4px 6px;font-size:12px;cursor:pointer}
+#userChip:hover{border-color:var(--accent)}
+.user-avatar{width:24px;height:24px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.user-role-tag{font-size:10px;color:var(--text-muted)}
 </style>
 </head>
 <body>
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Product Planning</div>
+    <div class="login-sub">Feature Tracker &amp; Workflow</div>
+    <div class="login-label">Your name</div>
+    <input id="loginInput" class="login-input" type="text" placeholder="Start typing your name…"
+      oninput="loginFilter()" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-error" id="loginError"></div>
+    <div class="login-suggest" id="loginSuggest"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
 
 <header>
   <h1>Product Planning — Feature Tracker</h1>
   
+  <div id="userChip" onclick="doLogout()" title="Click to sign out">
+    <div class="user-avatar" id="userAvatar"></div>
+    <div><div id="userName" style="font-size:12px;font-weight:600;color:var(--text)"></div><div class="user-role-tag" id="userRoleTag"></div></div>
+  </div>
   <button class="btn btn-purple" onclick="generatePptx(this)" style="margin-left:auto">&#11015; Download Slides</button>
 
   <select id="viewSelect" onchange="switchView(this.value)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 12px;font-size:13px;cursor:pointer;outline:none">
@@ -1188,6 +1228,68 @@ function buildFeatureCard(f) {
   </div>`;
 }
 
+
+
+// ── PEOPLE & AUTH ─────────────────────────────────────────────────────────────
+const PEOPLE = [{"id":"P001","name":"Sarah Johnson","role":"Product Manager","email":"sarah.johnson@company.com","team":"Product"},{"id":"P002","name":"Daniel Park","role":"Product Manager","email":"daniel.park@company.com","team":"Product"},{"id":"P003","name":"Mia Torres","role":"Product Manager","email":"mia.torres@company.com","team":"Product"},{"id":"P004","name":"James Whitfield","role":"Program Manager","email":"james.whitfield@company.com","team":"PMO"},{"id":"P005","name":"Linda Nguyen","role":"Program Manager","email":"linda.nguyen@company.com","team":"PMO"},{"id":"P006","name":"Alice Chen","role":"Engineering Lead","email":"alice.chen@company.com","team":"Engineering"},{"id":"P007","name":"Bob Martinez","role":"Engineering Lead","email":"bob.martinez@company.com","team":"Engineering"},{"id":"P008","name":"Carol White","role":"Developer","email":"carol.white@company.com","team":"Backend"},{"id":"P009","name":"David Kim","role":"Developer","email":"david.kim@company.com","team":"Frontend"},{"id":"P010","name":"Emma Singh","role":"Developer","email":"emma.singh@company.com","team":"Mobile"},{"id":"P011","name":"Frank Liu","role":"Developer","email":"frank.liu@company.com","team":"Backend"},{"id":"P012","name":"Grace Patel","role":"Developer","email":"grace.patel@company.com","team":"Full-Stack"},{"id":"P013","name":"Henry Brown","role":"Developer","email":"henry.brown@company.com","team":"Frontend"},{"id":"P014","name":"Iris Tanaka","role":"Developer","email":"iris.tanaka@company.com","team":"Backend"},{"id":"P015","name":"Jake Wilson","role":"Developer","email":"jake.wilson@company.com","team":"DevOps"},{"id":"P016","name":"Karen Scott","role":"Hardware Engineer","email":"karen.scott@company.com","team":"Hardware"},{"id":"P017","name":"Leo Fernandez","role":"Hardware Engineer","email":"leo.fernandez@company.com","team":"Hardware"},{"id":"P018","name":"Maya Robinson","role":"Hardware Engineer","email":"maya.robinson@company.com","team":"Hardware"},{"id":"P019","name":"Nathan Clark","role":"Test Engineer","email":"nathan.clark@company.com","team":"QA"},{"id":"P020","name":"Olivia Adams","role":"Test Engineer","email":"olivia.adams@company.com","team":"QA"},{"id":"P021","name":"Peter Zhang","role":"Test Engineer","email":"peter.zhang@company.com","team":"QA"},{"id":"P022","name":"Quinn Murphy","role":"Test Engineer","email":"quinn.murphy@company.com","team":"QA"},{"id":"P023","name":"Victoria Chen","role":"Executive","email":"victoria.chen@company.com","team":"Leadership"},{"id":"P024","name":"Marcus Reid","role":"Executive","email":"marcus.reid@company.com","team":"Leadership"},{"id":"P025","name":"Ryan Foster","role":"Customer Engineer","email":"ryan.foster@company.com","team":"Customer Engineering"},{"id":"P026","name":"Sophia Nguyen","role":"Customer Engineer","email":"sophia.nguyen@company.com","team":"Customer Engineering"},{"id":"P027","name":"Derek Okonkwo","role":"Customer Engineer","email":"derek.okonkwo@company.com","team":"Customer Engineering"}];
+let currentUser = null;
+
+function loginFilter() {
+  const q = document.getElementById('loginInput').value.toLowerCase().trim();
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginInput').classList.remove('error');
+  const box = document.getElementById('loginSuggest');
+  if (!q) { box.innerHTML = ''; return; }
+  const matches = PEOPLE.filter(p => p.name.toLowerCase().includes(q)).slice(0, 6);
+  box.innerHTML = matches.map(p =>
+    `<div class="login-suggest-item" onclick="selectUser('${p.id}')" data-id="${p.id}">
+      <span>${p.name}</span>
+      <span class="login-suggest-role">${p.role}</span>
+    </div>`
+  ).join('');
+}
+
+function selectUser(id) {
+  const p = PEOPLE.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('loginInput').value = p.name;
+  document.getElementById('loginSuggest').innerHTML = '';
+  doLogin();
+}
+
+function doLogin() {
+  const val = document.getElementById('loginInput').value.trim();
+  if (!val) {
+    document.getElementById('loginError').textContent = 'Please enter your name.';
+    document.getElementById('loginInput').classList.add('error');
+    return;
+  }
+  const match = PEOPLE.find(p => p.name.toLowerCase() === val.toLowerCase());
+  if (!match) {
+    document.getElementById('loginError').textContent = 'Name not found. Check the spelling or select from the list.';
+    document.getElementById('loginInput').classList.add('error');
+    return;
+  }
+  currentUser = match;
+  document.getElementById('loginScreen').style.display = 'none';
+  // Show user chip
+  const chip = document.getElementById('userChip');
+  chip.style.display = 'flex';
+  document.getElementById('userAvatar').textContent = match.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('userName').textContent = match.name;
+  document.getElementById('userRoleTag').textContent = match.role;
+}
+
+function doLogout() {
+  if (!confirm('Sign out?')) return;
+  currentUser = null;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('userChip').style.display = 'none';
+  document.getElementById('loginInput').value = '';
+  document.getElementById('loginSuggest').innerHTML = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginInput').classList.remove('error');
+}
 
 // Init: start on Data view
 switchView('data');
