@@ -140,6 +140,55 @@
 .tl-pill.stage-test-planning{border-left-color:#86efac}
 .tl-pill.stage-exception-pending-pm{border-left-color:#fbbf24}
 .tl-empty{color:var(--text-muted);font-size:13px;padding:20px;text-align:center}
+
+/* ── Workflow View ─────────────────────────────────────────────── */
+.wf-wrap{padding:16px 24px 32px}
+.wf-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+.wf-filters select,.wf-filters input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:5px 10px;font-size:12px;outline:none}
+.wf-filters input{min-width:200px}
+.wf-count{font-size:12px;color:var(--text-muted);margin-left:4px}
+
+.wf-quarter{margin-bottom:32px}
+.wf-q-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.wf-q-title{font-size:15px;font-weight:700;color:var(--text)}
+.wf-q-badge{font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 10px;color:var(--text-muted)}
+.wf-q-line{flex:1;height:1px;background:var(--border)}
+
+.wf-cards{display:flex;flex-direction:column;gap:10px}
+.wf-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;transition:border-color .2s}
+.wf-card:hover{border-color:var(--accent)}
+.wf-card.wf-blocked{border-left:3px solid #f87171}
+.wf-card.wf-released{border-left:3px solid #34d399}
+.wf-card.wf-exception{border-left:3px solid #fbbf24}
+.wf-card.wf-cancelled{opacity:.55;border-left:3px solid #4b446a}
+.wf-card.wf-hold{opacity:.7;border-left:3px solid #554c7e}
+
+.wf-card-top{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.wf-feat-num{font-size:11px;font-weight:700;color:var(--accent);background:rgba(108,99,255,.12);border-radius:5px;padding:2px 7px;white-space:nowrap}
+.wf-feat-title{font-size:13px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wf-feat-rel{font-size:11px;color:var(--text-muted);white-space:nowrap}
+.wf-stage-badge{font-size:11px;border-radius:20px;padding:2px 9px;white-space:nowrap;border:1px solid transparent}
+
+/* Step tracker */
+.wf-steps{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:4px}
+.wf-step-wrap{display:flex;align-items:flex-start;flex:1;min-width:0}
+.wf-step{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;min-width:48px}
+.wf-step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;position:relative;z-index:1}
+.wf-step-dot.done{background:#065f46;border:2px solid #34d399;color:#34d399}
+.wf-step-dot.active{background:rgba(139,92,246,.25);border:2px solid var(--accent);color:var(--accent);box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+.wf-step-dot.pending{background:var(--surface2);border:2px solid var(--border);color:var(--text-muted)}
+.wf-step-dot.blocked{background:#450a0a;border:2px solid #f87171;color:#f87171}
+.wf-step-dot.na{background:var(--surface);border:2px dashed #3e4460;color:#3e4460}
+.wf-step-dot.exception{background:#451a03;border:2px solid #fbbf24;color:#fbbf24}
+.wf-step-label{font-size:10px;color:var(--text-muted);text-align:center;line-height:1.3;max-width:56px}
+.wf-step-label.active{color:var(--accent);font-weight:600}
+.wf-step-label.done{color:#34d399}
+.wf-step-label.blocked{color:#f87171}
+.wf-connector{flex:1;height:2px;margin-top:13px;background:var(--border);min-width:8px}
+.wf-connector.done{background:#34d399}
+.wf-connector.active{background:linear-gradient(90deg,#34d399,var(--border))}
+.wf-blocker-note{margin-top:8px;padding:6px 10px;background:rgba(248,113,113,.08);border-left:3px solid #f87171;border-radius:4px;font-size:11px;color:#f87171}
+.wf-exception-note{margin-top:8px;padding:6px 10px;background:rgba(251,191,36,.08);border-left:3px solid #fbbf24;border-radius:4px;font-size:11px;color:#fbbf24}
 </style>
 </head>
 <body>
@@ -153,6 +202,7 @@
     <option value="dashboard">Dashboard</option>
     <option value="data" selected>Data View</option>
     <option value="timeline">Quarterly Timeline</option>
+    <option value="workflow">Workflow Status</option>
   </select>
 <div class="header-meta" style="display:none">
     <div class="stat-pill">Total <strong id="stat-total">100</strong></div>
@@ -282,6 +332,30 @@
   </div>
   <div class="tl-scroll"><div id="timelineContent"></div></div>
 </div>
+
+<div id="workflowView" style="display:none">
+<div class="wf-wrap">
+  <div class="wf-filters">
+    <input id="wfSearch" type="text" placeholder="Search features…" oninput="renderWorkflow()">
+    <select id="wfQuarter" onchange="renderWorkflow()">
+      <option value="">All Quarters</option>
+      <option>Q1 2025</option><option>Q2 2025</option><option>Q3 2025</option><option>Q4 2025</option>
+      <option>Q1 2026</option><option>Q2 2026</option><option>Q3 2026</option>
+    </select>
+    <select id="wfStage" onchange="renderWorkflow()">
+      <option value="">All Stages</option>
+      <option>Draft</option><option>PgM Review</option><option>HW Input</option>
+      <option>Dev Scheduling</option><option>Test Planning</option><option>QA Testing</option>
+      <option>Released</option><option>Released with Exception</option>
+      <option>Blocked</option><option>Exception Pending PM</option>
+      <option>On Hold</option><option>Cancelled</option>
+    </select>
+    <span id="wfCount" class="wf-count"></span>
+  </div>
+  <div id="wfContent"></div>
+</div>
+</div>
+
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 
 <script>
@@ -604,8 +678,10 @@ function switchView(v) {
   document.getElementById('dataView').style.display       = v === 'data'      ? 'block' : 'none';
   document.getElementById('dashboardView').style.display  = v === 'dashboard' ? 'block' : 'none';
   document.getElementById('timelineView').style.display   = v === 'timeline'  ? 'block' : 'none';
+  document.getElementById('workflowView').style.display   = v === 'workflow'  ? 'block' : 'none';
   if (v === 'dashboard') renderDashboard();
   if (v === 'timeline')  renderTimeline();
+  if (v === 'workflow')  renderWorkflow();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────
@@ -913,6 +989,205 @@ async function generatePptx(btn) {
     btn.textContent = orig; btn.disabled = false;
   }
 }
+
+
+// ── WORKFLOW VIEW ──────────────────────────────────────────────────────────────
+
+const WF_QUARTERS = [
+  {label:'Q1 2025', date:'2025-03-31'},
+  {label:'Q2 2025', date:'2025-06-30'},
+  {label:'Q3 2025', date:'2025-09-30'},
+  {label:'Q4 2025', date:'2025-12-31'},
+  {label:'Q1 2026', date:'2026-03-31'},
+  {label:'Q2 2026', date:'2026-06-30'},
+  {label:'Q3 2026', date:'2026-09-30'},
+];
+
+const WF_STAGE_CARD_CLASS = {
+  'Blocked':'wf-blocked', 'On Hold':'wf-hold', 'Cancelled':'wf-cancelled',
+  'Released':'wf-released','Released with Exception':'wf-exception',
+  'Exception Pending PM':'wf-exception',
+};
+const WF_STAGE_BADGE = {
+  'Draft':                  {bg:'rgba(62,68,96,.5)',  color:'#8892a4', text:'Draft'},
+  'PgM Review':             {bg:'rgba(59,89,152,.3)', color:'#93c5fd', text:'PgM Review'},
+  'HW Input':               {bg:'rgba(180,83,9,.3)',  color:'#fdba74', text:'HW Input'},
+  'Dev Scheduling':         {bg:'rgba(109,40,217,.3)',color:'#c4b5fd', text:'Dev Scheduling'},
+  'Test Planning':          {bg:'rgba(21,128,61,.3)', color:'#86efac', text:'Test Planning'},
+  'QA Testing':             {bg:'rgba(14,116,144,.3)',color:'#67e8f9', text:'QA Testing'},
+  'Blocked':                {bg:'rgba(153,27,27,.4)', color:'#f87171', text:'Blocked'},
+  'Exception Pending PM':   {bg:'rgba(120,53,15,.4)', color:'#fbbf24', text:'Exception'},
+  'Released':               {bg:'rgba(6,78,59,.4)',   color:'#34d399', text:'Released'},
+  'Released with Exception':{bg:'rgba(6,78,59,.3)',   color:'#6ee7b7', text:'Released w/ Exception'},
+  'On Hold':                {bg:'rgba(55,48,95,.4)',  color:'#a78bfa', text:'On Hold'},
+  'Cancelled':              {bg:'rgba(55,55,55,.3)',  color:'#6b7280', text:'Cancelled'},
+};
+
+// Steps definitions - HW step is index 2, optional
+const WF_STEPS_BASE = [
+  { id:'pm',     label:'PM\nRequest',    icon:'📋' },
+  { id:'dev',    label:'Dev\nCommit',    icon:'👨‍💻' },
+  { id:'hw',     label:'HW\nReady',      icon:'🔧', optional:true },
+  { id:'build',  label:'Dev\nComplete',  icon:'⚙️'  },
+  { id:'tplan',  label:'Test\nPlan',     icon:'📝' },
+  { id:'trun',   label:'Test\nRun',      icon:'🧪' },
+  { id:'docs',   label:'Docs\nReview',   icon:'📄' },
+  { id:'pub',    label:'Published',      icon:'🌐' },
+  { id:'ship',   label:'Released',       icon:'🚀' },
+];
+
+// Map workflow_stage to active step id
+const STAGE_TO_STEP = {
+  'Draft':                 'pm',
+  'PgM Review':            'dev',
+  'HW Input':              'hw',
+  'Dev Scheduling':        'build',
+  'Test Planning':         'tplan',
+  'QA Testing':            'trun',
+  'Exception Pending PM':  'trun',
+  'Released':              '__done__',
+  'Released with Exception':'__done__',
+  'Blocked':               '__blocked__',
+  'On Hold':               '__hold__',
+  'Cancelled':             '__cancelled__',
+};
+
+function renderWorkflow() {
+  const search  = (document.getElementById('wfSearch').value || '').toLowerCase();
+  const quarter = document.getElementById('wfQuarter').value;
+  const stage   = document.getElementById('wfStage').value;
+
+  let filtered = DATA.filter(f => {
+    if (stage  && f.workflow_stage !== stage) return false;
+    if (search && !f.feature_title.toLowerCase().includes(search) &&
+        !f.feature_number.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  // Filter by quarter label
+  const qDate = quarter
+    ? WF_QUARTERS.find(q => q.label === quarter)?.date
+    : null;
+  if (qDate) filtered = filtered.filter(f => f.target_release_date === qDate);
+
+  document.getElementById('wfCount').textContent = `${filtered.length} feature${filtered.length !== 1 ? 's' : ''}`;
+
+  // Group by quarter
+  const groups = WF_QUARTERS.map(q => ({
+    ...q,
+    feats: filtered.filter(f => f.target_release_date === q.date)
+  })).filter(g => g.feats.length > 0);
+
+  if (!groups.length) {
+    document.getElementById('wfContent').innerHTML =
+      '<div style="text-align:center;padding:48px;color:var(--text-muted);font-size:14px">No features match the current filters</div>';
+    return;
+  }
+
+  document.getElementById('wfContent').innerHTML = groups.map(g => {
+    const relStats = g.feats.reduce((acc, f) => {
+      const s = f.workflow_stage || 'Draft';
+      if (s === 'Released' || s === 'Released with Exception') acc.done++;
+      else if (s === 'Blocked' || s === 'Cancelled') acc.blocked++;
+      else acc.inprog++;
+      return acc;
+    }, {done:0, blocked:0, inprog:0});
+
+    const statsHtml = [
+      relStats.done    ? `<span style="color:#34d399;font-size:11px">✓ ${relStats.done} released</span>` : '',
+      relStats.blocked ? `<span style="color:#f87171;font-size:11px">✗ ${relStats.blocked} blocked</span>` : '',
+      relStats.inprog  ? `<span style="color:var(--text-muted);font-size:11px">◎ ${relStats.inprog} in progress</span>` : '',
+    ].filter(Boolean).join('<span style="color:var(--border);margin:0 6px">|</span>');
+
+    return `<div class="wf-quarter">
+      <div class="wf-q-header">
+        <span class="wf-q-title">${g.label}</span>
+        <span class="wf-q-badge">${g.feats.length} features</span>
+        <span style="display:flex;gap:10px;align-items:center">${statsHtml}</span>
+        <div class="wf-q-line"></div>
+      </div>
+      <div class="wf-cards">${g.feats.map(f => buildFeatureCard(f)).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildFeatureCard(f) {
+  const stage   = f.workflow_stage || 'Draft';
+  const hasHW   = !!(f.hw_dependency_date);
+  const steps   = hasHW ? WF_STEPS_BASE : WF_STEPS_BASE.filter(s => s.id !== 'hw');
+  const activeId = STAGE_TO_STEP[stage] || 'pm';
+  const isDone   = activeId === '__done__';
+  const isBlocked = stage === 'Blocked' || stage === 'On Hold' || stage === 'Cancelled';
+  const isException = stage === 'Exception Pending PM';
+
+  // Determine active step index
+  const activeIdx = isDone ? steps.length : steps.findIndex(s => s.id === activeId);
+
+  // Build step dots
+  const stepsHtml = steps.map((step, i) => {
+    let dotClass, labelClass, icon;
+    if (isBlocked && i === (activeIdx >= 0 ? activeIdx : Math.max(0, steps.findIndex(s=>s.id===activeId)))) {
+      dotClass = 'blocked'; labelClass = 'blocked'; icon = '✕';
+    } else if (i < activeIdx || isDone) {
+      dotClass = 'done';    labelClass = 'done';    icon = '✓';
+    } else if (i === activeIdx && !isBlocked) {
+      dotClass = isException && step.id === 'trun' ? 'exception' : 'active';
+      labelClass = isException && step.id === 'trun' ? 'blocked' : 'active';
+      icon = step.icon;
+    } else if (step.optional && !hasHW) {
+      dotClass = 'na';      labelClass = '';        icon = '—';
+    } else {
+      dotClass = 'pending'; labelClass = '';        icon = i + 1;
+    }
+
+    const connector = i < steps.length - 1
+      ? `<div class="wf-connector ${i < activeIdx || isDone ? 'done' : i === activeIdx - 1 ? 'active' : ''}"></div>`
+      : '';
+
+    const labelLines = step.label.split('\n');
+    return `<div class="wf-step-wrap">
+      <div class="wf-step">
+        <div class="wf-step-dot ${dotClass}" title="${step.label.replace('\n',' ')}">${icon}</div>
+        <div class="wf-step-label ${labelClass}">${labelLines.join('<br>')}</div>
+      </div>
+      ${connector}
+    </div>`;
+  }).join('');
+
+  // Stage badge
+  const badge = WF_STAGE_BADGE[stage] || {bg:'rgba(62,68,96,.5)',color:'#8892a4',text:stage};
+  const badgeHtml = `<span class="wf-stage-badge" style="background:${badge.bg};color:${badge.color};border-color:${badge.color}30">${badge.text}</span>`;
+
+  // Card modifier class
+  const cardClass = WF_STAGE_CARD_CLASS[stage] || '';
+
+  // Blocker / exception note
+  let noteHtml = '';
+  if (isException) {
+    noteHtml = `<div class="wf-exception-note">⚠ Testing incomplete — awaiting PM approval to release with exception</div>`;
+  } else if ((f.blockers || []).length > 0) {
+    const b = f.blockers[0];
+    noteHtml = `<div class="wf-blocker-note">🚫 Blocker: ${esc(b.title || b.description || 'Active blocker')}${b.severity ? ' <span style="opacity:.7">['+b.severity+']</span>' : ''}</div>`;
+  }
+
+  // HW note
+  const hwNote = hasHW && stage === 'HW Input'
+    ? `<span style="font-size:11px;color:#fdba74;margin-left:auto"> HW needed by ${esc(f.hw_dependency_date)}</span>`
+    : '';
+
+  return `<div class="wf-card ${cardClass}">
+    <div class="wf-card-top">
+      <span class="wf-feat-num">${esc(f.feature_number)}</span>
+      <span class="wf-feat-title" title="${esc(f.feature_title)}">${esc(f.feature_title)}</span>
+      ${hwNote}
+      ${badgeHtml}
+      <span class="wf-feat-rel">${esc(f.target_release_date)}</span>
+    </div>
+    <div class="wf-steps">${stepsHtml}</div>
+    ${noteHtml}
+  </div>`;
+}
+
 
 // Init: start on Data view
 switchView('data');
