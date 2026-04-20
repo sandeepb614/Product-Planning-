@@ -214,8 +214,10 @@
 .user-role-tag{font-size:10px;color:var(--text-muted)}
 
 /* ── Action Panel / Split Layout ──────────────────────────────── */
-.wf-panel{position:fixed;right:0;top:0;bottom:0;width:420px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;z-index:300;transform:translateX(100%);transition:transform .25s ease;box-shadow:-4px 0 24px rgba(0,0,0,.4)}
-.wf-panel.open{transform:translateX(0)}
+.wf-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:290;display:none;backdrop-filter:blur(2px)}
+.wf-backdrop.open{display:block}
+.wf-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-48%) scale(.97);width:580px;max-width:92vw;max-height:86vh;background:var(--surface);border:1px solid var(--border);border-radius:16px;display:flex;flex-direction:column;overflow:hidden;z-index:300;opacity:0;pointer-events:none;transition:transform .2s ease,opacity .2s ease;box-shadow:0 24px 64px rgba(0,0,0,.7)}
+.wf-panel.open{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
 .wf-panel-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
 .wf-panel-title{font-size:13px;font-weight:600;color:var(--text);padding:10px 16px 4px;line-height:1.4}
 .wf-panel-meta{display:flex;gap:12px;padding:2px 16px 12px;font-size:11px;color:var(--text-muted);flex-wrap:wrap;border-bottom:1px solid var(--border)}
@@ -1276,12 +1278,14 @@ function selectFeature(featId) {
   const panel = document.getElementById('wfActionPanel');
   panel.innerHTML = buildActionPanel(feat);
   panel.classList.add('open');
+  document.getElementById('wfBackdrop').classList.add('open');
 }
 
 function closeActionPanel() {
   selectedFeatId = null;
   document.querySelectorAll('.wf-card').forEach(c => c.classList.remove('wf-selected'));
   document.getElementById('wfActionPanel').classList.remove('open');
+  document.getElementById('wfBackdrop').classList.remove('open');
 }
 
 const PRIORITY_COLOR = { Critical:'#f87171', High:'#fb923c', Medium:'#86efac', Low:'#7dd3fc' };
@@ -1467,8 +1471,10 @@ function doLogout() {
 
 // Init: start on Data view
 switchView('data');
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeActionPanel(); });
 
 </script>
+<div id="wfBackdrop" class="wf-backdrop" onclick="closeActionPanel()"></div>
 <div id="wfActionPanel" class="wf-panel"></div>
 </body>
 </html>
